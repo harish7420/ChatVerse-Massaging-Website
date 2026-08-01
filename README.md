@@ -1,4 +1,4 @@
-# ChatVerse - Enterprise Real-Time Communication Platform 💬🚀
+git!# ChatVerse - Enterprise Real-Time Communication Platform 💬🚀
 
 ChatVerse is an end-to-end production-grade real-time chat web application built with **React, Vite, Node.js, Express, Socket.io, Mongoose, and Tailwind CSS**. Inspired by WhatsApp, Telegram, and Discord, it features rich UI components, dark/light modes, WebRTC audio/video call signaling, administration panel analytics, JWT authentication, and media storage.
 
