@@ -7,11 +7,11 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        target: '[https://chatverse-massaging-website.onrender.com](https://chatverse-massaging-website.onrender.com)',
         changeOrigin: true,
       },
       '/uploads': {
-        target: 'http://localhost:5000',
+        target: '[https://chatverse-massaging-website.onrender.com](https://chatverse-massaging-website.onrender.com)',
         changeOrigin: true,
       },
     },

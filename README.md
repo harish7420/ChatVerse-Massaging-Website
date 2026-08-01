@@ -88,7 +88,7 @@ cd server
 npm install
 npm start
 ```
-*Note: The server will run on `http://localhost:5000` with resilient mock database fallback if MongoDB URI is not supplied.*
+*Note: The server will run on `[https://chatverse-massaging-website.onrender.com](https://chatverse-massaging-website.onrender.com)` with resilient mock database fallback if MongoDB URI is not supplied.*
 
 ### 2. Setup Frontend
 ```bash

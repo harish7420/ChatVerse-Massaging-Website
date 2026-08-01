@@ -26,7 +26,7 @@ export const SocketProvider = ({ children }) => {
     }
 
     const socketUrl = window.location.origin.includes('localhost')
-      ? 'http://localhost:5000'
+      ? '[https://chatverse-massaging-website.onrender.com](https://chatverse-massaging-website.onrender.com)'
       : window.location.origin;
 
     const newSocket = io(socketUrl, {
