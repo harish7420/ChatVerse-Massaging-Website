@@ -1,0 +1,129 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-main: #f8fafc;
+    --bg-surface: #ffffff;
+    --bg-card: #f1f5f9;
+    --border-color: #e2e8f0;
+    --text-primary: #0f172a;
+    --text-secondary: #64748b;
+    --text-muted: #94a3b8;
+    --glass-bg: rgba(255, 255, 255, 0.85);
+    --glass-border: rgba(0, 0, 0, 0.08);
+    --bubble-incoming: #ffffff;
+    --bubble-incoming-text: #1e293b;
+    --bubble-incoming-border: #e2e8f0;
+  }
+
+  .dark {
+    --bg-main: #0b0f17;
+    --bg-surface: #151c2c;
+    --bg-card: #1e293b;
+    --border-color: #2a364f;
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --glass-bg: rgba(21, 28, 44, 0.82);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --bubble-incoming: rgba(30, 41, 59, 0.9);
+    --bubble-incoming-text: #f1f5f9;
+    --bubble-incoming-border: rgba(255, 255, 255, 0.08);
+  }
+
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    transition: background-color 0.25s ease, color 0.25s ease;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.6);
+}
+
+/* Glassmorphism utility classes */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+}
+
+.glass-card {
+  background: var(--bg-surface);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-color);
+}
+
+.glass-input {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+
+.glass-input:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+/* Chat Canvas Wallpaper Pattern (WhatsApp Style) */
+.chat-pattern {
+  background-color: var(--bg-main);
+  background-image: radial-gradient(rgba(99, 102, 241, 0.08) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.dark .chat-pattern {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+}
+
+/* Chat bubble styling */
+.bubble-incoming {
+  background: var(--bubble-incoming);
+  color: var(--bubble-incoming-text);
+  border: 1px solid var(--bubble-incoming-border);
+}
+
+.bubble-outgoing {
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+}
+
+/* Pulse indicator animation */
+.online-dot {
+  box-shadow: 0 0 8px #10b981;
+}
+
+/* Voice waveform bars animation */
+@keyframes waveform {
+  0%, 100% { height: 4px; }
+  50% { height: 18px; }
+}
+
+.animate-waveform-bar {
+  animation: waveform 1s ease-in-out infinite;
+}
+
+/* Custom Modal Backdrop Overlay */
+.modal-backdrop {
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(8px);
+}
