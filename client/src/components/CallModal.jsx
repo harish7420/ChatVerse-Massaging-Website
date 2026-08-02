@@ -1,13 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { PhoneOff, Mic, MicOff, Video, VideoOff, PhoneCall, X } from 'lucide-react';
 import { useSocket } from '../hooks/useSocket';
 import { getMediaUrl, handleImageError, DEFAULT_AVATAR } from '../utils/imageUtils';
 
 const CallModal = () => {
-  const { activeCall, acceptCall, rejectCall, endCall } = useSocket();
-  const [isMuted, setIsMuted] = useState(false);
-  const [isCamOff, setIsCamOff] = useState(false);
+  const {
+    activeCall,
+    acceptCall,
+    rejectCall,
+    endCall,
+    localStream,
+    remoteStream,
+    isMuted,
+    isCamOff,
+    toggleMute,
+    toggleCamera,
+  } = useSocket();
+
   const [callDuration, setCallDuration] = useState(0);
+
+  const localVideoRef = useRef(null);
+  const remoteVideoRef = useRef(null);
+  const remoteAudioRef = useRef(null);
 
   useEffect(() => {
     let timer;
@@ -18,6 +32,21 @@ const CallModal = () => {
     }
     return () => clearInterval(timer);
   }, [activeCall?.status]);
+
+  useEffect(() => {
+    if (localVideoRef.current && localStream) {
+      localVideoRef.current.srcObject = localStream;
+    }
+  }, [localStream]);
+
+  useEffect(() => {
+    if (remoteVideoRef.current && remoteStream) {
+      remoteVideoRef.current.srcObject = remoteStream;
+    }
+    if (remoteAudioRef.current && remoteStream) {
+      remoteAudioRef.current.srcObject = remoteStream;
+    }
+  }, [remoteStream]);
 
   if (!activeCall) return null;
 
@@ -49,8 +78,150 @@ const CallModal = () => {
     }
   };
 
+  // Video Call Modal Layout
+  if (isVideo) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-xl p-2 sm:p-4 select-none animate-fade-in">
+        {/* Remote Audio Output for Video Call */}
+        <audio ref={remoteAudioRef} autoPlay playsInline />
+
+        <div className="w-full max-w-5xl h-[90vh] sm:h-[85vh] bg-gray-950 border border-white/10 rounded-3xl overflow-hidden relative shadow-2xl flex flex-col justify-between">
+          {/* Main Remote Video Container */}
+          <div className="relative w-full h-full flex items-center justify-center bg-gray-900 overflow-hidden">
+            {activeCall.status === 'connected' && remoteStream ? (
+              <video
+                ref={remoteVideoRef}
+                autoPlay
+                playsInline
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              /* Fallback / Connecting State Remote View */
+              <div className="flex flex-col items-center justify-center space-y-4 p-6 text-center z-10">
+                <div className="relative">
+                  <img
+                    src={getMediaUrl(targetUser?.avatar, DEFAULT_AVATAR)}
+                    alt={targetUser?.username || 'User'}
+                    onError={(e) => handleImageError(e, DEFAULT_AVATAR)}
+                    className="w-28 h-28 sm:w-36 sm:h-36 rounded-full object-cover border-4 border-brand-500 shadow-2xl"
+                  />
+                  {(activeCall.status === 'calling' || activeCall.status === 'ringing') && (
+                    <span className="w-8 h-8 rounded-full bg-amber-500 absolute bottom-1 right-1 border-4 border-gray-900 animate-ping" />
+                  )}
+                  {activeCall.status === 'connected' && (
+                    <span className="w-8 h-8 rounded-full bg-emerald-500 absolute bottom-1 right-1 border-4 border-gray-900 animate-pulse" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-2xl sm:text-3xl font-extrabold text-white tracking-wide">
+                    {targetUser?.username || 'Contact User'}
+                  </h3>
+                  <p className="text-xs sm:text-sm font-bold uppercase tracking-widest text-brand-400 mt-2 animate-pulse">
+                    {getStatusText()}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Floating Picture-in-Picture Local Video Preview */}
+            {localStream && (
+              <div className="absolute top-4 right-4 z-20 w-32 h-44 sm:w-44 sm:h-60 rounded-2xl overflow-hidden border-2 border-brand-500/80 shadow-2xl bg-gray-900/90 backdrop-blur-md">
+                {isCamOff ? (
+                  <div className="w-full h-full flex flex-col items-center justify-center bg-gray-950 p-2 text-center">
+                    <VideoOff className="w-8 h-8 text-rose-500 mb-1" />
+                    <span className="text-[10px] text-gray-400 font-medium">Camera Off</span>
+                  </div>
+                ) : (
+                  <video
+                    ref={localVideoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full h-full object-cover transform -scale-x-100"
+                  />
+                )}
+              </div>
+            )}
+
+            {/* Header Overlay Info (when connected) */}
+            {activeCall.status === 'connected' && (
+              <div className="absolute top-4 left-4 z-20 bg-black/50 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/10 flex items-center gap-3">
+                <img
+                  src={getMediaUrl(targetUser?.avatar, DEFAULT_AVATAR)}
+                  alt={targetUser?.username || 'User'}
+                  onError={(e) => handleImageError(e, DEFAULT_AVATAR)}
+                  className="w-8 h-8 rounded-full object-cover"
+                />
+                <div>
+                  <h4 className="text-xs font-bold text-white">{targetUser?.username}</h4>
+                  <p className="text-[10px] font-semibold text-emerald-400">{formatDuration(callDuration)}</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Bottom Floating Controls Bar */}
+          <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-30 bg-black/60 backdrop-blur-xl border border-white/15 px-6 py-3 rounded-3xl flex items-center gap-6 shadow-2xl">
+            {activeCall.status === 'incoming' ? (
+              <>
+                <button
+                  onClick={rejectCall}
+                  className="w-14 h-14 rounded-full bg-rose-600 hover:bg-rose-700 text-white flex items-center justify-center shadow-lg shadow-rose-600/40 hover:scale-110 transition-all"
+                  title="Decline Call"
+                >
+                  <X className="w-7 h-7" />
+                </button>
+                <button
+                  onClick={acceptCall}
+                  className="w-14 h-14 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center shadow-lg shadow-emerald-600/40 hover:scale-110 transition-all animate-bounce"
+                  title="Accept Call"
+                >
+                  <PhoneCall className="w-7 h-7" />
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={toggleMute}
+                  className={`p-3.5 sm:p-4 rounded-2xl transition-all ${
+                    isMuted ? 'bg-rose-500 text-white shadow-lg' : 'bg-gray-800/80 text-gray-200 hover:bg-gray-700'
+                  }`}
+                  title={isMuted ? 'Unmute Microphone' : 'Mute Microphone'}
+                >
+                  {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                </button>
+
+                <button
+                  onClick={toggleCamera}
+                  className={`p-3.5 sm:p-4 rounded-2xl transition-all ${
+                    isCamOff ? 'bg-rose-500 text-white shadow-lg' : 'bg-gray-800/80 text-gray-200 hover:bg-gray-700'
+                  }`}
+                  title={isCamOff ? 'Turn On Camera' : 'Turn Off Camera'}
+                >
+                  {isCamOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
+                </button>
+
+                <button
+                  onClick={endCall}
+                  className="p-3.5 sm:p-4 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-600/40 hover:scale-105 transition-all"
+                  title="End Call"
+                >
+                  <PhoneOff className="w-6 h-6 fill-current" />
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Audio Call Modal Layout
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-lg p-4 select-none animate-fade-in">
+      {/* Remote Audio Output for Voice Call */}
+      <audio ref={remoteAudioRef} autoPlay playsInline />
+
       <div className="w-full max-w-md bg-gray-900 border border-white/10 rounded-3xl p-6 shadow-2xl text-center space-y-6 flex flex-col justify-between min-h-[460px]">
         {/* Call Header info */}
         <div className="space-y-4 pt-2">
@@ -82,44 +253,37 @@ const CallModal = () => {
                   : 'text-brand-400 animate-pulse'
               }`}
             >
-              ChatVerse {isVideo ? 'Video' : 'Voice'} Call • {getStatusText()}
+              ChatVerse Voice Call • {getStatusText()}
             </p>
           </div>
         </div>
 
-        {/* Video / Waveform Canvas Stream representation */}
-        <div className="h-44 rounded-2xl bg-gray-800/90 border border-gray-700/80 flex items-center justify-center relative overflow-hidden">
-          {isVideo && !isCamOff && activeCall.status === 'connected' ? (
-            <div className="w-full h-full flex items-center justify-center bg-gray-950 text-xs text-gray-400">
-              <div className="text-center space-y-2">
-                <Video className="w-8 h-8 text-brand-500 mx-auto animate-pulse" />
-                <p className="font-semibold text-gray-300">HD Video Stream Active</p>
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              {[40, 70, 30, 90, 50, 80, 40, 60, 30, 85].map((h, i) => (
-                <div
-                  key={i}
-                  style={{
-                    height:
-                      activeCall.status === 'connected'
-                        ? `${h}%`
-                        : activeCall.status === 'calling' || activeCall.status === 'ringing'
-                        ? `${Math.min(h, 45)}%`
-                        : '15%',
-                  }}
-                  className={`w-2 rounded-full transition-all duration-300 ${
+        {/* Live Audio Visualizer Animation */}
+        <div className="h-36 rounded-2xl bg-gray-800/90 border border-gray-700/80 flex items-center justify-center relative overflow-hidden">
+          <div className="flex items-center gap-2">
+            {[40, 70, 30, 90, 50, 80, 40, 60, 30, 85].map((h, i) => (
+              <div
+                key={i}
+                style={{
+                  height:
                     activeCall.status === 'connected'
-                      ? 'bg-emerald-500 animate-pulse'
+                      ? `${isMuted ? 15 : h}%`
                       : activeCall.status === 'calling' || activeCall.status === 'ringing'
-                      ? 'bg-brand-500 animate-pulse'
-                      : 'bg-gray-600'
-                  }`}
-                />
-              ))}
-            </div>
-          )}
+                      ? `${Math.min(h, 45)}%`
+                      : '15%',
+                }}
+                className={`w-2 rounded-full transition-all duration-300 ${
+                  activeCall.status === 'connected'
+                    ? isMuted
+                      ? 'bg-gray-600'
+                      : 'bg-emerald-500 animate-pulse'
+                    : activeCall.status === 'calling' || activeCall.status === 'ringing'
+                    ? 'bg-brand-500 animate-pulse'
+                    : 'bg-gray-600'
+                }`}
+              />
+            ))}
+          </div>
         </div>
 
         {/* Call Controls */}
@@ -143,9 +307,9 @@ const CallModal = () => {
           </div>
         ) : (
           /* Calling / Ringing / Connected Actions */
-          <div className="flex items-center justify-center gap-4 pb-2">
+          <div className="flex items-center justify-center gap-6 pb-2">
             <button
-              onClick={() => setIsMuted((prev) => !prev)}
+              onClick={toggleMute}
               className={`p-4 rounded-2xl transition-all ${
                 isMuted ? 'bg-rose-500 text-white shadow-lg' : 'bg-gray-800 text-gray-200 hover:bg-gray-700'
               }`}
@@ -153,18 +317,6 @@ const CallModal = () => {
             >
               {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
             </button>
-
-            {isVideo && (
-              <button
-                onClick={() => setIsCamOff((prev) => !prev)}
-                className={`p-4 rounded-2xl transition-all ${
-                  isCamOff ? 'bg-rose-500 text-white shadow-lg' : 'bg-gray-800 text-gray-200 hover:bg-gray-700'
-                }`}
-                title={isCamOff ? 'Turn On Camera' : 'Turn Off Camera'}
-              >
-                {isCamOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
-              </button>
-            )}
 
             <button
               onClick={endCall}
@@ -181,3 +333,4 @@ const CallModal = () => {
 };
 
 export default CallModal;
+

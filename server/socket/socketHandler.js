@@ -113,7 +113,10 @@ const socketHandler = (io) => {
 
     // WebRTC Real-Time Calling Signals (WhatsApp Behavior)
     socket.on('call_user', ({ userToCall, signalData, from, callType }) => {
-      const targetSocketId = onlineUsersMap.get(userToCall.toString());
+      if (!userToCall) return;
+      const targetUserId = userToCall.toString();
+      const targetSocketId = onlineUsersMap.get(targetUserId);
+
       if (targetSocketId) {
         io.to(targetSocketId).emit('incoming_call', {
           signal: signalData,
@@ -128,6 +131,7 @@ const socketHandler = (io) => {
     });
 
     socket.on('answer_call', (data) => {
+      if (!data || !data.to) return;
       const targetSocketId = onlineUsersMap.get(data.to.toString());
       if (targetSocketId) {
         io.to(targetSocketId).emit('call_accepted', data.signal);
@@ -143,7 +147,7 @@ const socketHandler = (io) => {
     });
 
     socket.on('ice_candidate', ({ to, candidate }) => {
-      if (!to) return;
+      if (!to || !candidate) return;
       const targetSocketId = onlineUsersMap.get(to.toString());
       if (targetSocketId) {
         io.to(targetSocketId).emit('ice_candidate', candidate);
