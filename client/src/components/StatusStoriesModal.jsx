@@ -3,7 +3,7 @@ import { X, Plus, Sparkles, Send, Eye, ChevronLeft, ChevronRight, Image as Image
 import { useAuth } from '../hooks/useAuth';
 import { useSocket } from '../hooks/useSocket';
 import API from '../services/api';
-import { getMediaUrl, handleImageError, DEFAULT_AVATAR, DEFAULT_IMAGE_FALLBACK } from '../utils/imageUtils';
+import { getMediaUrl, handleImageError, DEFAULT_AVATAR, DEFAULT_IMAGE_FALLBACK, fileToBase64 } from '../utils/imageUtils';
 
 const GRADIENT_PALETTES = [
   'from-brand-600 to-indigo-800',
@@ -114,12 +114,13 @@ const StatusStoriesModal = ({ isOpen, onClose }) => {
     }
   };
 
-  const handleFileSelect = (e) => {
+  const handleFileSelect = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
     setSelectedFile(file);
-    setFilePreview(URL.createObjectURL(file));
+    const base64 = await fileToBase64(file);
+    setFilePreview(base64);
 
     if (file.type.startsWith('video/')) {
       setStatusType('video');
@@ -134,15 +135,17 @@ const StatusStoriesModal = ({ isOpen, onClose }) => {
     if ((statusType === 'image' || statusType === 'video') && !selectedFile) return;
 
     setIsPosting(true);
-    const formData = new FormData();
-    formData.append('type', statusType);
-    if (newStatusText) formData.append('content', newStatusText);
-    formData.append('bgColor', selectedBgColor);
-    if (selectedFile) formData.append('media', selectedFile);
+    let mediaUrlBase64 = '';
+    if (selectedFile) {
+      mediaUrlBase64 = await fileToBase64(selectedFile);
+    }
 
     try {
-      const { data } = await API.post('/status', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+      const { data } = await API.post('/status', {
+        type: statusType,
+        content: newStatusText,
+        bgColor: selectedBgColor,
+        mediaUrl: mediaUrlBase64,
       });
 
       if (data.success) {

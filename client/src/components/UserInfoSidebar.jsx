@@ -3,7 +3,7 @@ import { X, Pin, VolumeX, FileText, UserX, Shield, ShieldAlert, Edit2, UserPlus,
 import { useChat } from '../hooks/useChat';
 import { useAuth } from '../hooks/useAuth';
 import API from '../services/api';
-import { getMediaUrl, handleImageError, DEFAULT_AVATAR, DEFAULT_GROUP_AVATAR, DEFAULT_IMAGE_FALLBACK } from '../utils/imageUtils';
+import { getMediaUrl, handleImageError, DEFAULT_AVATAR, DEFAULT_GROUP_AVATAR, DEFAULT_IMAGE_FALLBACK, fileToBase64 } from '../utils/imageUtils';
 
 const UserInfoSidebar = ({ onClose }) => {
   const { user } = useAuth();
@@ -62,7 +62,8 @@ const UserInfoSidebar = ({ onClose }) => {
   const handleGroupIconChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      await updateGroupInfo(selectedChat._id, null, file);
+      const base64 = await fileToBase64(file);
+      await updateGroupInfo(selectedChat._id, null, base64);
     }
   };
 

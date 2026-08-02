@@ -11,6 +11,8 @@ const ForgotPasswordPage = () => {
   const [loading, setLoading] = useState(false);
   const [resetToken, setResetToken] = useState('');
 
+  const [toast, setToast] = useState(null);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -18,11 +20,10 @@ const ForgotPasswordPage = () => {
       const { data } = await API.post('/auth/forgot-password', { email });
       if (data.success) {
         setSent(true);
-        setResetToken(data.resetToken || 'demo_token_123');
+        setResetToken(data.resetToken || '');
       }
-    } catch (e) {
-      setSent(true);
-      setResetToken('demo_token_123');
+    } catch (err) {
+      setToast({ message: err.response?.data?.message || 'No user found with that email address', type: 'error', id: Date.now() });
     } finally {
       setLoading(false);
     }
@@ -31,6 +32,7 @@ const ForgotPasswordPage = () => {
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 flex flex-col">
       <Navbar />
+      <Toast toast={toast} />
 
       <div className="flex-1 flex items-center justify-center p-3 sm:p-4">
         <div className="w-full max-w-md p-5 sm:p-8 rounded-3xl glass-panel shadow-2xl border border-gray-800 space-y-5 sm:space-y-6">

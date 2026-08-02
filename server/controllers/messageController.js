@@ -3,105 +3,65 @@ const Message = require('../models/Message');
 const Chat = require('../models/Chat');
 const User = require('../models/User');
 const BlockedUser = require('../models/BlockedUser');
-const { uploadToCloudinary } = require('../utils/cloudinaryHelper');
 
 /**
- * @desc    Send New Message (Text or Media Upload)
+ * @desc    Send New Message (Text or Base64 Media Payload)
  * @route   POST /api/message
  * @access  Private
  */
 const sendMessage = asyncHandler(async (req, res) => {
-  const { content, chatId, replyToId } = req.body;
+  const { content, chatId, replyToId, fileUrl, fileName, fileType } = req.body;
 
-  let fileUrl = '';
-  let fileName = '';
-  let fileType = 'text';
-
-  if (req.file) {
-    fileName = req.file.originalname;
-    const mime = req.file.mimetype;
-
-    if (mime.startsWith('image/')) fileType = 'image';
-    else if (mime.startsWith('video/')) fileType = 'video';
-    else if (mime.startsWith('audio/')) fileType = 'audio';
-    else fileType = 'document';
-
-    try {
-      fileUrl = await uploadToCloudinary(req.file.buffer, {
-        folder: 'chatverse/messages',
-        resource_type: fileType === 'image' ? 'image' : fileType === 'video' || fileType === 'audio' ? 'video' : 'raw',
-      });
-    } catch (err) {
-      console.error('Message file Cloudinary upload error:', err);
-    }
+  if (!chatId) {
+    res.status(400);
+    throw new Error('Chat ID is required');
   }
 
-  try {
-    // Check if chat is 1-on-1 and check block status
-    const chat = await Chat.findById(chatId);
-    if (chat && !chat.isGroupChat) {
-      const recipientId = chat.users.find((u) => u.toString() !== req.user._id.toString());
-      if (recipientId) {
-        const isBlocked = await BlockedUser.findOne({
-          $or: [
-            { blocker: req.user._id, blockedUser: recipientId },
-            { blocker: recipientId, blockedUser: req.user._id },
-          ],
-        });
-        if (isBlocked) {
-          res.status(403);
-          throw new Error('Message cannot be sent due to block restrictions');
-        }
+  // Check if chat is 1-on-1 and check block status
+  const chat = await Chat.findById(chatId);
+  if (!chat) {
+    res.status(404);
+    throw new Error('Chat not found');
+  }
+
+  if (!chat.isGroupChat) {
+    const recipientId = chat.users.find((u) => u.toString() !== req.user._id.toString());
+    if (recipientId) {
+      const isBlocked = await BlockedUser.findOne({
+        $or: [
+          { blocker: req.user._id, blockedUser: recipientId },
+          { blocker: recipientId, blockedUser: req.user._id },
+        ],
+      });
+      if (isBlocked) {
+        res.status(403);
+        throw new Error('Message cannot be sent due to block restrictions');
       }
     }
-
-    let messageData = {
-      sender: req.user._id,
-      content: content || '',
-      chat: chatId,
-      fileUrl,
-      fileName,
-      fileType,
-      replyTo: replyToId || null,
-      readBy: [req.user._id],
-    };
-
-    let message = await Message.create(messageData);
-    message = await message.populate('sender', 'username avatar email');
-    message = await message.populate('chat');
-    message = await User.populate(message, {
-      path: 'chat.users',
-      select: 'username avatar email',
-    });
-
-    await Chat.findByIdAndUpdate(chatId, { latestMessage: message._id });
-
-    return res.status(201).json({ success: true, message });
-  } catch (error) {
-    if (error.statusCode === 403 || error.message.includes('block')) {
-      return res.status(403).json({ success: false, message: error.message });
-    }
-
-    // Offline Mock Message Response
-    const mockMessage = {
-      _id: 'msg_' + Date.now(),
-      sender: {
-        _id: req.user._id,
-        username: req.user.username,
-        avatar: req.user.avatar,
-      },
-      content: content || (fileUrl ? 'Shared Attachment' : ''),
-      chat: chatId,
-      fileUrl,
-      fileName,
-      fileType,
-      readBy: [req.user._id],
-      deliveredTo: [],
-      reactions: [],
-      createdAt: new Date().toISOString(),
-    };
-    return res.status(201).json({ success: true, message: mockMessage });
   }
+
+  let messageData = {
+    sender: req.user._id,
+    content: content || '',
+    chat: chatId,
+    fileUrl: fileUrl || '',
+    fileName: fileName || '',
+    fileType: fileType || (fileUrl ? 'image' : 'text'),
+    replyTo: replyToId || null,
+    readBy: [req.user._id],
+  };
+
+  let message = await Message.create(messageData);
+  message = await message.populate('sender', 'username avatar email');
+  message = await message.populate('chat');
+  message = await User.populate(message, {
+    path: 'chat.users',
+    select: 'username avatar email',
+  });
+
+  await Chat.findByIdAndUpdate(chatId, { latestMessage: message._id });
+
+  return res.status(201).json({ success: true, message });
 });
 
 /**
@@ -112,48 +72,12 @@ const sendMessage = asyncHandler(async (req, res) => {
 const getMessages = asyncHandler(async (req, res) => {
   const { chatId } = req.params;
 
-  try {
-    const messages = await Message.find({ chat: chatId })
-      .populate('sender', 'username avatar email')
-      .populate('replyTo')
-      .sort({ createdAt: 1 });
+  const messages = await Message.find({ chat: chatId })
+    .populate('sender', 'username avatar email')
+    .populate('replyTo')
+    .sort({ createdAt: 1 });
 
-    return res.json({ success: true, messages });
-  } catch (error) {
-    // Return initial sample chat history for demo mode
-    const mockMessages = [
-      {
-        _id: 'msg_1',
-        sender: {
-          _id: 'mock_1',
-          username: 'Sarah Connor',
-          avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=200',
-        },
-        chat: chatId,
-        content: 'Welcome to ChatVerse! Excited to test out all real-time features.',
-        fileType: 'text',
-        readBy: [req.user._id],
-        reactions: [{ emoji: '🚀', user: 'mock_1' }],
-        createdAt: new Date(Date.now() - 3600000).toISOString(),
-      },
-      {
-        _id: 'msg_2',
-        sender: {
-          _id: req.user._id,
-          username: req.user.username,
-          avatar: req.user.avatar,
-        },
-        chat: chatId,
-        content: 'Thanks Sarah! The dynamic UI and WebSockets feel super responsive.',
-        fileType: 'text',
-        readBy: [req.user._id],
-        reactions: [{ emoji: '❤️', user: req.user._id }],
-        createdAt: new Date(Date.now() - 1800000).toISOString(),
-      },
-    ];
-
-    return res.json({ success: true, messages: mockMessages });
-  }
+  return res.json({ success: true, messages });
 });
 
 /**
@@ -165,6 +89,23 @@ const reactToMessage = asyncHandler(async (req, res) => {
   const { emoji } = req.body;
   const messageId = req.params.id;
 
+  const message = await Message.findById(messageId);
+  if (!message) {
+    res.status(404);
+    throw new Error('Message not found');
+  }
+
+  // Remove existing reaction by current user if exists
+  message.reactions = message.reactions.filter(
+    (r) => r.user.toString() !== req.user._id.toString()
+  );
+
+  if (emoji) {
+    message.reactions.push({ user: req.user._id, emoji });
+  }
+
+  await message.save();
+
   res.json({
     success: true,
     message: 'Reaction updated',
@@ -175,24 +116,37 @@ const reactToMessage = asyncHandler(async (req, res) => {
 
 /**
  * @desc    Delete Message
- * @route   DELETE /api/message/:id
+ * @route   DELETE /api/messages/:id (also /api/message/:id)
  * @access  Private
  */
 const deleteMessage = asyncHandler(async (req, res) => {
   const messageId = req.params.id;
-  let chatId = null;
 
-  try {
-    const msg = await Message.findById(messageId);
-    if (msg) {
-      chatId = msg.chat;
-      msg.isDeleted = true;
-      msg.content = 'This message was deleted';
-      msg.fileUrl = '';
-      await msg.save();
-    }
-  } catch (e) {
-    console.error('Delete message error:', e);
+  const msg = await Message.findById(messageId);
+  if (!msg) {
+    res.status(404);
+    throw new Error('Message not found');
+  }
+
+  const isSender = msg.sender.toString() === req.user._id.toString();
+  const isAdmin = req.user.isAdmin === true;
+
+  if (!isSender && !isAdmin) {
+    res.status(403);
+    throw new Error('Not authorized to delete this message');
+  }
+
+  const chatId = msg.chat;
+
+  // Delete message from MongoDB Atlas
+  await Message.findByIdAndDelete(messageId);
+
+  // Update latestMessage in Chat if it was the deleted message
+  const chat = await Chat.findById(chatId);
+  if (chat && chat.latestMessage?.toString() === messageId) {
+    const nextLatest = await Message.findOne({ chat: chatId }).sort({ createdAt: -1 });
+    chat.latestMessage = nextLatest ? nextLatest._id : null;
+    await chat.save();
   }
 
   res.json({ success: true, messageId, chatId, message: 'Message deleted successfully' });
@@ -204,3 +158,4 @@ module.exports = {
   reactToMessage,
   deleteMessage,
 };
+

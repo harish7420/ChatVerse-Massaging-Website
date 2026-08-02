@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Camera, User, Mail, FileText, Save } from 'lucide-react';
+import { Camera, User, FileText, Save } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import Navbar from '../components/Navbar';
 import Toast from '../components/Toast';
 import FeedbackModal from '../components/FeedbackModal';
-import { getMediaUrl, handleImageError, DEFAULT_AVATAR } from '../utils/imageUtils';
+import { getMediaUrl, handleImageError, DEFAULT_AVATAR, fileToBase64 } from '../utils/imageUtils';
 
 const ProfilePage = () => {
   const { user, updateUserProfile, loading, toast } = useAuth();
@@ -15,22 +15,28 @@ const ProfilePage = () => {
   const [previewUrl, setPreviewUrl] = useState(getMediaUrl(user?.avatar, DEFAULT_AVATAR));
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
 
-  const handleAvatarChange = (e) => {
+  const handleAvatarChange = async (e) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       setSelectedFile(file);
-      setPreviewUrl(URL.createObjectURL(file));
+      const base64 = await fileToBase64(file);
+      setPreviewUrl(base64);
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const formData = new FormData();
-    formData.append('username', username);
-    formData.append('bio', bio);
-    if (selectedFile) formData.append('avatar', selectedFile);
+    let avatarBase64 = user?.avatar || '';
 
-    await updateUserProfile(formData);
+    if (selectedFile) {
+      avatarBase64 = await fileToBase64(selectedFile);
+    }
+
+    await updateUserProfile({
+      username,
+      bio,
+      avatar: avatarBase64,
+    });
   };
 
   return (
@@ -124,3 +130,4 @@ const ProfilePage = () => {
 };
 
 export default ProfilePage;
+

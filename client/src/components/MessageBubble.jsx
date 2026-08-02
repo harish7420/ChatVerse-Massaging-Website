@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Check, CheckCheck, Reply, Trash2, Copy, FileText, Download, Play, Pause, Volume2 } from 'lucide-react';
+import { Check, CheckCheck, Reply, Trash2, Copy, FileText, Download, Play, Pause, Volume2, MoreVertical } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useChat } from '../hooks/useChat';
 import { useSocket } from '../hooks/useSocket';
@@ -14,14 +14,17 @@ const MessageBubble = ({ message, onOpenImageLightbox }) => {
   const { socket } = useSocket();
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [reactionsList, setReactionsList] = useState(message.reactions || []);
+  const [showMenu, setShowMenu] = useState(false);
   const audioRef = useRef(null);
 
   const isOutgoing = message.sender?._id === user?._id || message.sender === user?._id;
+  const canDelete = isOutgoing || user?.isAdmin;
 
   const handleCopyText = () => {
     if (message.content && !message.isDeleted) {
       navigator.clipboard.writeText(message.content);
       showToast('Copied to clipboard', 'info');
+      setShowMenu(false);
     }
   };
 
@@ -57,7 +60,7 @@ const MessageBubble = ({ message, onOpenImageLightbox }) => {
   const mediaAttachmentUrl = getMediaUrl(message.fileUrl, DEFAULT_IMAGE_FALLBACK);
 
   return (
-    <div className={`flex flex-col ${isOutgoing ? 'items-end' : 'items-start'} group my-1.5 select-text max-w-full`}>
+    <div className={`flex flex-col ${isOutgoing ? 'items-end' : 'items-start'} group my-1.5 select-text max-w-full relative`}>
       {/* Sender Name in Group Chat */}
       {!isOutgoing && (
         <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 mb-1 ml-1 truncate max-w-[200px]">
@@ -67,7 +70,7 @@ const MessageBubble = ({ message, onOpenImageLightbox }) => {
 
       {/* Bubble Wrapper */}
       <div className="relative max-w-[88%] sm:max-w-[70%]">
-        {/* Quick Hover & Action Bar (Available for BOTH sent & received messages) */}
+        {/* Quick Hover & Three-Dot Menu Action Bar */}
         {!message.isDeleted && (
           <div
             className={`absolute -top-9 ${
@@ -91,20 +94,57 @@ const MessageBubble = ({ message, onOpenImageLightbox }) => {
               <Copy className="w-3 h-3" />
             </button>
             <button
-              onClick={() => setReplyToMessage(message)}
+              onClick={() => {
+                setReplyToMessage(message);
+                setShowMenu(false);
+              }}
               className="p-1 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
               title="Reply"
             >
               <Reply className="w-3 h-3" />
             </button>
-            {/* Delete Message Button for ALL messages (Sent & Received) */}
-            <button
-              onClick={() => deleteMessage(message._id)}
-              className="p-1 text-red-400 hover:text-red-600 dark:hover:text-red-300 transition-colors"
-              title="Delete Message"
-            >
-              <Trash2 className="w-3 h-3" />
-            </button>
+            
+            {/* Three-Dot Menu Trigger */}
+            <div className="relative">
+              <button
+                onClick={() => setShowMenu((prev) => !prev)}
+                className="p-1 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+                title="More Options"
+              >
+                <MoreVertical className="w-3 h-3" />
+              </button>
+
+              {showMenu && (
+                <div className={`absolute top-6 ${isOutgoing ? 'right-0' : 'left-0'} min-w-[130px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl py-1 z-30 text-xs`}>
+                  <button
+                    onClick={handleCopyText}
+                    className="w-full text-left px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 text-gray-700 dark:text-gray-200"
+                  >
+                    <Copy className="w-3.5 h-3.5" /> Copy Text
+                  </button>
+                  <button
+                    onClick={() => {
+                      setReplyToMessage(message);
+                      setShowMenu(false);
+                    }}
+                    className="w-full text-left px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 text-gray-700 dark:text-gray-200"
+                  >
+                    <Reply className="w-3.5 h-3.5" /> Reply
+                  </button>
+                  {canDelete && (
+                    <button
+                      onClick={() => {
+                        deleteMessage(message._id);
+                        setShowMenu(false);
+                      }}
+                      className="w-full text-left px-3 py-1.5 hover:bg-red-50 dark:hover:bg-red-950/30 flex items-center gap-2 text-red-600 dark:text-red-400 font-medium"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> Delete Message
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         )}
 

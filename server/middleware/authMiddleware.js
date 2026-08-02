@@ -24,23 +24,11 @@ const protect = asyncHandler(async (req, res, next) => {
     const secret = process.env.JWT_SECRET || 'chatverse_super_secret_jwt_key_2026';
     const decoded = jwt.verify(token, secret);
 
-    // Fetch user if DB is active, or construct user object
-    let user;
-    try {
-      user = await User.findById(decoded.userId).select('-password');
-    } catch (e) {
-      user = null;
-    }
+    const user = await User.findById(decoded.userId).select('-password');
 
     if (!user) {
-      // Fallback mock user payload if MongoDB is disconnected in local mode
-      user = {
-        _id: decoded.userId,
-        username: 'User_' + String(decoded.userId).substring(0, 6),
-        email: 'user@chatverse.com',
-        isAdmin: true,
-        isSuspended: false,
-      };
+      res.status(401);
+      throw new Error('Not authorized, user not found');
     }
 
     if (user.isSuspended) {
@@ -60,7 +48,7 @@ const protect = asyncHandler(async (req, res, next) => {
  * Restrict routes to Admin users only
  */
 const adminOnly = (req, res, next) => {
-  if (req.user && req.user.isAdmin) {
+  if (req.user && req.user.isAdmin === true) {
     next();
   } else {
     res.status(403);
@@ -69,3 +57,4 @@ const adminOnly = (req, res, next) => {
 };
 
 module.exports = { protect, adminOnly };
+

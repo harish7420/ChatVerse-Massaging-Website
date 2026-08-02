@@ -77,18 +77,7 @@ const Sidebar = ({ onOpenCreateGroup, onOpenStories }) => {
         setSearchQuery('');
       }
     } catch (e) {
-      const targetUserObj = searchResults.find((u) => u._id === targetUserId) || {
-        _id: targetUserId,
-        username: 'Chat Contact',
-        avatar: DEFAULT_AVATAR,
-      };
-      const mockChat = {
-        _id: 'chat_' + targetUserId,
-        isGroupChat: false,
-        users: [user, targetUserObj],
-      };
-      handleSelectChat(mockChat);
-      setSearchQuery('');
+      console.error('Failed to start chat:', e);
     }
   };
 

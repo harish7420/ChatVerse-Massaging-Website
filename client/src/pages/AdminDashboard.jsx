@@ -32,29 +32,7 @@ const AdminDashboard = () => {
         setUsersList(usersRes.value.data.users);
       }
       if (feedbackRes.status === 'fulfilled' && feedbackRes.value.data.success) {
-        setFeedbackList(feedbackRes.value.data.feedback);
-      } else {
-        // Mock feedback data fallback
-        setFeedbackList([
-          {
-            _id: 'fb_1',
-            rating: 5,
-            category: 'ux',
-            message: 'Love the new WhatsApp voice notes and themes! Great work.',
-            status: 'new',
-            user: { username: 'Alex Johnson', email: 'alex@example.com', avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150' },
-            createdAt: new Date(Date.now() - 7200000).toISOString(),
-          },
-          {
-            _id: 'fb_2',
-            rating: 4,
-            category: 'feature',
-            message: 'Could you add custom chat wallpaper selection in settings?',
-            status: 'reviewed',
-            user: { username: 'Sarah Connor', email: 'sarah@example.com', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150' },
-            createdAt: new Date(Date.now() - 86400000).toISOString(),
-          },
-        ]);
+        setFeedbackList(feedbackRes.value.data.feedback || []);
       }
     } catch (error) {
       console.error('Error fetching admin data:', error);

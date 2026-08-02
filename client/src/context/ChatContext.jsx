@@ -2,6 +2,7 @@ import React, { createContext, useState, useContext, useEffect, useCallback } fr
 import API from '../services/api';
 import { AuthContext } from './AuthContext';
 import { SocketContext } from './SocketContext';
+import { fileToBase64 } from '../utils/imageUtils';
 
 export const ChatContext = createContext();
 
@@ -101,16 +102,32 @@ export const ChatProvider = ({ children }) => {
       return;
     }
 
-    const formData = new FormData();
-    formData.append('chatId', selectedChat._id);
-    if (content) formData.append('content', content);
-    if (replyToMessage) formData.append('replyToId', replyToMessage._id);
-    if (file) formData.append('file', file);
+    let fileUrl = '';
+    let fileName = '';
+    let fileType = 'text';
+
+    if (file) {
+      fileName = file.name;
+      const mime = file.type || '';
+      if (mime.startsWith('image/')) fileType = 'image';
+      else if (mime.startsWith('video/')) fileType = 'video';
+      else if (mime.startsWith('audio/')) fileType = 'audio';
+      else fileType = 'document';
+
+      fileUrl = await fileToBase64(file);
+    }
+
+    const payload = {
+      chatId: selectedChat._id,
+      content: content || '',
+      replyToId: replyToMessage ? replyToMessage._id : null,
+      fileUrl,
+      fileName,
+      fileType,
+    };
 
     try {
-      const { data } = await API.post('/message', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      const { data } = await API.post('/message', payload);
 
       if (data.success) {
         setMessages((prev) => [...prev, data.message]);
@@ -205,15 +222,12 @@ export const ChatProvider = ({ children }) => {
   };
 
   // Group Management Functions
-  const updateGroupInfo = async (chatId, chatName, groupIconFile = null) => {
-    const formData = new FormData();
-    formData.append('chatId', chatId);
-    if (chatName) formData.append('chatName', chatName);
-    if (groupIconFile) formData.append('groupIcon', groupIconFile);
-
+  const updateGroupInfo = async (chatId, chatName, groupIconBase64 = null) => {
     try {
-      const { data } = await API.put('/chat/group/info', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+      const { data } = await API.put('/chat/group/info', {
+        chatId,
+        chatName,
+        groupIcon: groupIconBase64,
       });
       if (data.success && data.chat) {
         setChats((prev) => prev.map((c) => (c._id === chatId ? data.chat : c)));
@@ -284,14 +298,8 @@ export const ChatProvider = ({ children }) => {
 
   // Delete Message API & real-time socket emit
   const deleteMessage = async (messageId) => {
-    // Optimistic local state update
-    setMessages((prev) =>
-      prev.map((msg) =>
-        msg._id === messageId
-          ? { ...msg, isDeleted: true, content: 'This message was deleted', fileUrl: '' }
-          : msg
-      )
-    );
+    // Instant local UI state update (remove message completely from messages array)
+    setMessages((prev) => prev.filter((msg) => msg._id !== messageId));
 
     if (socket && selectedChat) {
       socket.emit('delete_message', { messageId, chatId: selectedChat._id });
@@ -303,7 +311,6 @@ export const ChatProvider = ({ children }) => {
         showToast('Message deleted', 'info');
       }
     } catch (error) {
-      // Fallback try singular endpoint if plural endpoint fails
       try {
         await API.delete(`/message/${messageId}`);
       } catch (err) {}
@@ -326,13 +333,7 @@ export const ChatProvider = ({ children }) => {
     };
 
     const handleMessageDeleted = ({ messageId }) => {
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg._id === messageId
-            ? { ...msg, isDeleted: true, content: 'This message was deleted', fileUrl: '' }
-            : msg
-        )
-      );
+      setMessages((prev) => prev.filter((msg) => msg._id !== messageId));
     };
 
     const handleGroupUpdated = (updatedChat) => {
@@ -369,6 +370,7 @@ export const ChatProvider = ({ children }) => {
       socket.off('stop_typing', handleStopTyping);
     };
   }, [socket, selectedChat]);
+
 
   useEffect(() => {
     fetchChats();

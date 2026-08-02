@@ -70,12 +70,10 @@ export const AuthProvider = ({ children }) => {
     showToast('Logged out successfully', 'info');
   };
 
-  const updateUserProfile = async (formData) => {
+  const updateUserProfile = async (userData) => {
     setLoading(true);
     try {
-      const { data } = await API.put('/users/update', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      const { data } = await API.put('/users/update', userData);
       if (data.success) {
         setUser(data.user);
         localStorage.setItem('chatverse_user', JSON.stringify(data.user));

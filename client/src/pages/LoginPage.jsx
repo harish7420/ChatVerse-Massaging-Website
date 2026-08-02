@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { MessageSquare, Mail, Lock, ArrowRight, ShieldCheck } from 'lucide-react';
+import { MessageSquare, Mail, Lock, ArrowRight } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import Navbar from '../components/Navbar';
 import Toast from '../components/Toast';
@@ -17,16 +17,6 @@ const LoginPage = () => {
     if (res.success) {
       navigate('/dashboard');
     }
-  };
-
-  const fillAdminCredentials = () => {
-    setEmail('admin@chatverse.com');
-    setPassword('admin123');
-  };
-
-  const fillUserCredentials = () => {
-    setEmail('user@chatverse.com');
-    setPassword('user123');
   };
 
   return (
@@ -90,30 +80,7 @@ const LoginPage = () => {
             </button>
           </form>
 
-          {/* Quick Autofill Credentials */}
-          <div className="pt-4 border-t border-gray-200 dark:border-gray-800 space-y-2">
-            <p className="text-[11px] text-center text-gray-500 dark:text-gray-400 flex items-center justify-center gap-1">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" /> Quick Autofill Options:
-            </p>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <button
-                type="button"
-                onClick={fillAdminCredentials}
-                className="flex-1 py-2 sm:py-1.5 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-xs text-gray-700 dark:text-gray-300 font-semibold transition-colors"
-              >
-                Admin Account
-              </button>
-              <button
-                type="button"
-                onClick={fillUserCredentials}
-                className="flex-1 py-2 sm:py-1.5 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-xs text-gray-700 dark:text-gray-300 font-semibold transition-colors"
-              >
-                User Account
-              </button>
-            </div>
-          </div>
-
-          <p className="text-center text-xs text-gray-500 dark:text-gray-400">
+          <p className="text-center text-xs text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-100 dark:border-gray-800">
             Don't have an account?{' '}
             <Link to="/register" className="text-brand-600 dark:text-brand-400 font-semibold hover:underline">
               Create One
@@ -126,3 +93,4 @@ const LoginPage = () => {
 };
 
 export default LoginPage;
+

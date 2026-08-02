@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, Users, Check, Search, Sparkles } from 'lucide-react';
+import { X, Users, Check, Search, Sparkles, Camera } from 'lucide-react';
 import API from '../services/api';
 import { useChat } from '../hooks/useChat';
-import { getMediaUrl, handleImageError, DEFAULT_AVATAR, DEFAULT_GROUP_AVATAR } from '../utils/imageUtils';
+import { getMediaUrl, handleImageError, DEFAULT_AVATAR, DEFAULT_GROUP_AVATAR, fileToBase64 } from '../utils/imageUtils';
 
 const CreateGroupModal = ({ isOpen, onClose }) => {
   const { handleSelectChat, showToast } = useChat();
@@ -10,12 +10,13 @@ const CreateGroupModal = ({ isOpen, onClose }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [usersList, setUsersList] = useState([]);
   const [selectedUserIds, setSelectedUserIds] = useState([]);
+  const [selectedGroupIcon, setSelectedGroupIcon] = useState(null);
+  const [groupIconPreview, setGroupIconPreview] = useState(DEFAULT_GROUP_AVATAR);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
 
-    // Fetch user list for selection
     const fetchUsers = async () => {
       try {
         const { data } = await API.get('/users');
@@ -37,15 +38,30 @@ const CreateGroupModal = ({ isOpen, onClose }) => {
     );
   };
 
+  const handleIconChange = async (e) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setSelectedGroupIcon(file);
+      const base64 = await fileToBase64(file);
+      setGroupIconPreview(base64);
+    }
+  };
+
   const handleCreateGroup = async (e) => {
     e.preventDefault();
     if (!groupName.trim() || selectedUserIds.length === 0) return;
 
     setLoading(true);
+    let iconBase64 = '';
+    if (selectedGroupIcon) {
+      iconBase64 = await fileToBase64(selectedGroupIcon);
+    }
+
     try {
       const { data } = await API.post('/chat/group', {
         name: groupName,
         users: JSON.stringify(selectedUserIds),
+        icon: iconBase64,
       });
 
       if (data.success) {
@@ -54,18 +70,7 @@ const CreateGroupModal = ({ isOpen, onClose }) => {
         onClose();
       }
     } catch (err) {
-      const mockGroupChat = {
-        _id: 'group_' + Date.now(),
-        chatName: groupName,
-        isGroupChat: true,
-        groupAdmin: 'current_user',
-        users: usersList.filter((u) => selectedUserIds.includes(u._id)),
-        groupIcon: DEFAULT_GROUP_AVATAR,
-        latestMessage: null,
-      };
-      handleSelectChat(mockGroupChat);
-      showToast('Group chat created successfully', 'success');
-      onClose();
+      showToast(err.response?.data?.message || 'Failed to create group', 'error');
     } finally {
       setLoading(false);
     }
@@ -98,6 +103,23 @@ const CreateGroupModal = ({ isOpen, onClose }) => {
         </div>
 
         <form onSubmit={handleCreateGroup} className="space-y-4">
+          {/* Group Icon Selector */}
+          <div className="flex flex-col items-center space-y-2">
+            <div className="relative group cursor-pointer">
+              <img
+                src={getMediaUrl(groupIconPreview, DEFAULT_GROUP_AVATAR)}
+                alt="Group Icon"
+                onError={(e) => handleImageError(e, DEFAULT_GROUP_AVATAR)}
+                className="w-20 h-20 rounded-full object-cover border-2 border-brand-500 shadow-md"
+              />
+              <label className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
+                <Camera className="w-5 h-5 text-white" />
+                <input type="file" onChange={handleIconChange} accept="image/*" className="hidden" />
+              </label>
+            </div>
+            <span className="text-[11px] text-gray-500 dark:text-gray-400">Add Group Photo (Optional)</span>
+          </div>
+
           {/* Group Name Input */}
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 block">
@@ -193,3 +215,4 @@ const CreateGroupModal = ({ isOpen, onClose }) => {
 };
 
 export default CreateGroupModal;
+
