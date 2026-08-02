@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Plus, Sparkles, Send, Eye, ChevronLeft, ChevronRight, Image as ImageIcon, Video as VideoIcon, Type } from 'lucide-react';
+import { X, Plus, Sparkles, Send, Eye, ChevronLeft, ChevronRight, Image as ImageIcon, Video as VideoIcon, Type, Trash2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { useSocket } from '../hooks/useSocket';
 import API from '../services/api';
 
 const GRADIENT_PALETTES = [
@@ -13,6 +14,7 @@ const GRADIENT_PALETTES = [
 
 const StatusStoriesModal = ({ isOpen, onClose }) => {
   const { user, showToast } = useAuth();
+  const { socket } = useSocket();
   const [statusGroups, setStatusGroups] = useState([]);
   const [activeUserIndex, setActiveUserIndex] = useState(0);
   const [activeStoryIndex, setActiveStoryIndex] = useState(0);
@@ -39,7 +41,7 @@ const StatusStoriesModal = ({ isOpen, onClose }) => {
   // Fetch active statuses from backend
   const fetchStatuses = async () => {
     try {
-      const { data } = await API.get('/api/status');
+      const { data } = await API.get('/status');
       if (data.success) {
         setStatusGroups(data.statuses || []);
       }
@@ -62,7 +64,7 @@ const StatusStoriesModal = ({ isOpen, onClose }) => {
     const currentStory = currentGroup?.items[activeStoryIndex];
 
     if (currentStory && currentStory._id) {
-      API.post(`/api/status/${currentStory._id}/view`).catch(() => {});
+      API.post(`/status/${currentStory._id}/view`).catch(() => {});
     }
   }, [isOpen, activeUserIndex, activeStoryIndex, statusGroups]);
 
@@ -138,12 +140,15 @@ const StatusStoriesModal = ({ isOpen, onClose }) => {
     if (selectedFile) formData.append('media', selectedFile);
 
     try {
-      const { data } = await API.post('/api/status', formData, {
+      const { data } = await API.post('/status', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
       if (data.success) {
         showToast('Status posted successfully!', 'success');
+        if (socket) {
+          socket.emit('status_posted', data.status);
+        }
         setNewStatusText('');
         setSelectedFile(null);
         setFilePreview(null);
@@ -154,6 +159,22 @@ const StatusStoriesModal = ({ isOpen, onClose }) => {
       showToast('Failed to post status update', 'error');
     } finally {
       setIsPosting(false);
+    }
+  };
+
+  const handleDeleteStatus = async () => {
+    if (!currentStory || !currentStory._id) return;
+    try {
+      const { data } = await API.delete(`/status/${currentStory._id}`);
+      if (data.success) {
+        showToast('Status deleted successfully', 'info');
+        if (socket) {
+          socket.emit('status_deleted', { statusId: currentStory._id });
+        }
+        fetchStatuses();
+      }
+    } catch (e) {
+      showToast('Failed to delete status', 'error');
     }
   };
 
@@ -288,7 +309,7 @@ const StatusStoriesModal = ({ isOpen, onClose }) => {
           )}
         </div>
 
-        {/* Creator Viewers Tray (Eye Icon for My Status) */}
+        {/* Creator Viewers Tray (Eye Icon & Delete for My Status) */}
         {isMyStatus && currentStory && (
           <div className="p-3 bg-black/80 backdrop-blur-md border-t border-white/10 flex items-center justify-between text-white text-xs z-20">
             <button
@@ -297,6 +318,15 @@ const StatusStoriesModal = ({ isOpen, onClose }) => {
             >
               <Eye className="w-4 h-4 text-brand-400" />
               <span>{currentStory.viewers?.length || 0} Viewers</span>
+            </button>
+
+            <button
+              onClick={handleDeleteStatus}
+              className="flex items-center gap-1 text-red-400 hover:text-red-300 transition-colors px-2.5 py-1 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20"
+              title="Delete Status"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Delete</span>
             </button>
           </div>
         )}

@@ -1,6 +1,7 @@
 const asyncHandler = require('../utils/asyncHandler');
 const Chat = require('../models/Chat');
 const User = require('../models/User');
+const { uploadToCloudinary } = require('../utils/cloudinaryHelper');
 
 /**
  * @desc    Access or Create 1-on-1 Chat
@@ -282,7 +283,14 @@ const updateGroupInfo = asyncHandler(async (req, res) => {
     if (groupIcon !== undefined) chat.groupIcon = groupIcon;
 
     if (req.file) {
-      chat.groupIcon = `/uploads/${req.file.filename}`;
+      try {
+        chat.groupIcon = await uploadToCloudinary(req.file.buffer, {
+          folder: 'chatverse/groups',
+          resource_type: 'image',
+        });
+      } catch (err) {
+        console.error('Group icon Cloudinary upload error:', err);
+      }
     }
 
     await chat.save();

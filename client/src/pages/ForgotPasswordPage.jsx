@@ -32,10 +32,10 @@ const ForgotPasswordPage = () => {
     <div className="min-h-screen bg-gray-950 text-gray-100 flex flex-col">
       <Navbar />
 
-      <div className="flex-1 flex items-center justify-center p-4">
-        <div className="w-full max-w-md p-8 rounded-3xl glass-panel shadow-2xl border border-gray-800 space-y-6">
+      <div className="flex-1 flex items-center justify-center p-3 sm:p-4">
+        <div className="w-full max-w-md p-5 sm:p-8 rounded-3xl glass-panel shadow-2xl border border-gray-800 space-y-5 sm:space-y-6">
           <div className="text-center space-y-2">
-            <h2 className="text-2xl font-bold text-gray-100">Forgot Password</h2>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-100">Forgot Password</h2>
             <p className="text-xs text-gray-400">Enter your email to receive recovery instructions</p>
           </div>
 

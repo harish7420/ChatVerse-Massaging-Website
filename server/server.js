@@ -26,10 +26,23 @@ const adminRoutes = require('./routes/adminRoutes');
 const app = express();
 const server = http.createServer(app);
 
+// Configure CORS origins
+const allowedOrigins = [
+  'https://chat-verse-massaging-website.vercel.app',
+  process.env.CLIENT_URL,
+  'http://localhost:5173',
+  'http://localhost:3000',
+].filter(Boolean);
+
 // Initialize Socket.io with CORS
 const io = new Server(server, {
   cors: {
-    origin: process.env.CLIENT_URL || '*',
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
+        return callback(null, origin || true);
+      }
+      return callback(null, origin);
+    },
     credentials: true,
   },
   pingTimeout: 60000,
@@ -48,7 +61,12 @@ app.use(
 
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || true,
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
+        return callback(null, origin || true);
+      }
+      return callback(null, origin);
+    },
     credentials: true,
   })
 );

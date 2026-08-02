@@ -21,7 +21,7 @@ const Sidebar = ({ onOpenCreateGroup, onOpenStories }) => {
 
     const fetchStatuses = async () => {
       try {
-        const { data } = await API.get('/api/status');
+        const { data } = await API.get('/status');
         if (data.success) {
           setActiveStatuses(data.statuses || []);
         }
@@ -35,7 +35,11 @@ const Sidebar = ({ onOpenCreateGroup, onOpenStories }) => {
     if (socket) {
       const handleStatusPosted = () => fetchStatuses();
       socket.on('status_posted', handleStatusPosted);
-      return () => socket.off('status_posted', handleStatusPosted);
+      socket.on('status_deleted', handleStatusPosted);
+      return () => {
+        socket.off('status_posted', handleStatusPosted);
+        socket.off('status_deleted', handleStatusPosted);
+      };
     }
   }, [user, socket]);
 

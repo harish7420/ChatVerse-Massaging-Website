@@ -86,6 +86,17 @@ const socketHandler = (io) => {
       socket.broadcast.emit('status_viewed', { statusId, viewer });
     });
 
+    socket.on('status_deleted', ({ statusId }) => {
+      socket.broadcast.emit('status_deleted', { statusId });
+    });
+
+    // Delete Message Sync
+    socket.on('delete_message', ({ messageId, chatId }) => {
+      if (chatId) {
+        io.in(chatId.toString()).emit('message_deleted', { messageId, chatId });
+      }
+    });
+
     // Read Receipts
     socket.on('message_seen', ({ messageId, chatId, userId }) => {
       io.in(chatId).emit('message_seen', { messageId, chatId, userId });

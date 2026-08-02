@@ -1,7 +1,9 @@
 import axios from 'axios';
 
+const BACKEND_URL = import.meta.env.VITE_API_URL || 'https://chatverse-massaging-website.onrender.com';
+
 const API = axios.create({
-  baseURL: '/api',
+  baseURL: `${BACKEND_URL.replace(/\/$/, '')}/api`,
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',

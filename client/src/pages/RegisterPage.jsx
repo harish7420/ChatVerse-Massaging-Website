@@ -26,13 +26,13 @@ const RegisterPage = () => {
       <Navbar />
       <Toast toast={toast} />
 
-      <div className="flex-1 flex items-center justify-center p-4">
-        <div className="w-full max-w-md p-8 rounded-3xl bg-white dark:bg-gray-900 shadow-2xl border border-gray-200 dark:border-gray-800 space-y-6">
+      <div className="flex-1 flex items-center justify-center p-3 sm:p-4">
+        <div className="w-full max-w-md p-5 sm:p-8 rounded-3xl bg-white dark:bg-gray-900 shadow-2xl border border-gray-200 dark:border-gray-800 space-y-5 sm:space-y-6">
           <div className="text-center space-y-2">
             <div className="w-12 h-12 rounded-2xl bg-brand-500/10 text-brand-600 dark:text-brand-400 mx-auto flex items-center justify-center border border-brand-500/20">
               <UserPlus className="w-6 h-6" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Create Account</h2>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">Create Account</h2>
             <p className="text-xs text-gray-500 dark:text-gray-400">Join ChatVerse real-time community today</p>
           </div>
 

@@ -1,6 +1,7 @@
 const asyncHandler = require('../utils/asyncHandler');
 const Status = require('../models/Status');
 const User = require('../models/User');
+const { uploadToCloudinary } = require('../utils/cloudinaryHelper');
 
 // In-memory fallback for offline/demo mode when DB is unavailable
 let memoryStatuses = [];
@@ -21,10 +22,18 @@ const createStatus = asyncHandler(async (req, res) => {
   let statusType = type || 'text';
 
   if (req.file) {
-    mediaUrl = `/uploads/${req.file.filename}`;
     const mime = req.file.mimetype;
     if (mime.startsWith('image/')) statusType = 'image';
     else if (mime.startsWith('video/')) statusType = 'video';
+
+    try {
+      mediaUrl = await uploadToCloudinary(req.file.buffer, {
+        folder: 'chatverse/statuses',
+        resource_type: statusType === 'video' ? 'video' : 'image',
+      });
+    } catch (err) {
+      console.error('Status media upload to Cloudinary failed:', err);
+    }
   }
 
   try {

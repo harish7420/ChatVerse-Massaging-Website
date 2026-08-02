@@ -3,6 +3,7 @@ const Message = require('../models/Message');
 const Chat = require('../models/Chat');
 const User = require('../models/User');
 const BlockedUser = require('../models/BlockedUser');
+const { uploadToCloudinary } = require('../utils/cloudinaryHelper');
 
 /**
  * @desc    Send New Message (Text or Media Upload)
@@ -17,7 +18,6 @@ const sendMessage = asyncHandler(async (req, res) => {
   let fileType = 'text';
 
   if (req.file) {
-    fileUrl = `/uploads/${req.file.filename}`;
     fileName = req.file.originalname;
     const mime = req.file.mimetype;
 
@@ -25,6 +25,15 @@ const sendMessage = asyncHandler(async (req, res) => {
     else if (mime.startsWith('video/')) fileType = 'video';
     else if (mime.startsWith('audio/')) fileType = 'audio';
     else fileType = 'document';
+
+    try {
+      fileUrl = await uploadToCloudinary(req.file.buffer, {
+        folder: 'chatverse/messages',
+        resource_type: fileType === 'image' ? 'image' : fileType === 'video' || fileType === 'audio' ? 'video' : 'raw',
+      });
+    } catch (err) {
+      console.error('Message file Cloudinary upload error:', err);
+    }
   }
 
   try {
@@ -171,12 +180,22 @@ const reactToMessage = asyncHandler(async (req, res) => {
  */
 const deleteMessage = asyncHandler(async (req, res) => {
   const messageId = req.params.id;
+  let chatId = null;
 
   try {
-    await Message.findByIdAndUpdate(messageId, { isDeleted: true, content: 'This message was deleted' });
+    const msg = await Message.findById(messageId);
+    if (msg) {
+      chatId = msg.chat;
+      if (msg.sender.toString() === req.user._id.toString() || req.user.isAdmin) {
+        msg.isDeleted = true;
+        msg.content = 'This message was deleted';
+        msg.fileUrl = '';
+        await msg.save();
+      }
+    }
   } catch (e) {}
 
-  res.json({ success: true, messageId, message: 'Message deleted successfully' });
+  res.json({ success: true, messageId, chatId, message: 'Message deleted successfully' });
 });
 
 module.exports = {

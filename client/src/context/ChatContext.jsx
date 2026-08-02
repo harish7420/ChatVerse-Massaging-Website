@@ -282,6 +282,29 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
+  // Delete Message API & real-time socket emit
+  const deleteMessage = async (messageId) => {
+    try {
+      const { data } = await API.delete(`/message/${messageId}`);
+      if (data.success) {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg._id === messageId
+              ? { ...msg, isDeleted: true, content: 'This message was deleted', fileUrl: '' }
+              : msg
+          )
+        );
+
+        if (socket && selectedChat) {
+          socket.emit('delete_message', { messageId, chatId: selectedChat._id });
+        }
+        showToast('Message deleted', 'info');
+      }
+    } catch (error) {
+      showToast('Failed to delete message', 'error');
+    }
+  };
+
   // Socket event listeners for real-time chat updates
   useEffect(() => {
     if (!socket) return;
@@ -293,6 +316,16 @@ export const ChatProvider = ({ children }) => {
       }
       setChats((prev) =>
         prev.map((c) => (c._id === targetChatId ? { ...c, latestMessage: newMessage } : c))
+      );
+    };
+
+    const handleMessageDeleted = ({ messageId }) => {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg._id === messageId
+            ? { ...msg, isDeleted: true, content: 'This message was deleted', fileUrl: '' }
+            : msg
+        )
       );
     };
 
@@ -317,12 +350,14 @@ export const ChatProvider = ({ children }) => {
     };
 
     socket.on('receive_message', handleReceiveMessage);
+    socket.on('message_deleted', handleMessageDeleted);
     socket.on('group_updated', handleGroupUpdated);
     socket.on('typing', handleTyping);
     socket.on('stop_typing', handleStopTyping);
 
     return () => {
       socket.off('receive_message', handleReceiveMessage);
+      socket.off('message_deleted', handleMessageDeleted);
       socket.off('group_updated', handleGroupUpdated);
       socket.off('typing', handleTyping);
       socket.off('stop_typing', handleStopTyping);
@@ -350,6 +385,7 @@ export const ChatProvider = ({ children }) => {
         blockedByIds,
         handleSelectChat,
         sendMessage,
+        deleteMessage,
         fetchChats,
         togglePinChat,
         toggleMuteChat,

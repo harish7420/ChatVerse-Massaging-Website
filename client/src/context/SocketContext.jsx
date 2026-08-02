@@ -25,9 +25,7 @@ export const SocketProvider = ({ children }) => {
       return;
     }
 
-    const socketUrl = window.location.origin.includes('localhost')
-      ? '[https://chatverse-massaging-website.onrender.com](https://chatverse-massaging-website.onrender.com)'
-      : window.location.origin;
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || 'https://chatverse-massaging-website.onrender.com';
 
     const newSocket = io(socketUrl, {
       withCredentials: true,

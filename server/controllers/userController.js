@@ -2,6 +2,8 @@ const asyncHandler = require('../utils/asyncHandler');
 const User = require('../models/User');
 const BlockedUser = require('../models/BlockedUser');
 
+const { uploadToCloudinary } = require('../utils/cloudinaryHelper');
+
 // Memory fallback for offline mode
 let memoryBlocked = new Map(); // blockerId -> Set of blockedUserIds
 
@@ -100,6 +102,18 @@ const getUserById = asyncHandler(async (req, res) => {
  */
 const updateUserProfile = asyncHandler(async (req, res) => {
   const { username, bio, avatar } = req.body;
+  let uploadedAvatarUrl = avatar || '';
+
+  if (req.file) {
+    try {
+      uploadedAvatarUrl = await uploadToCloudinary(req.file.buffer, {
+        folder: 'chatverse/avatars',
+        resource_type: 'image',
+      });
+    } catch (err) {
+      console.error('Avatar upload to Cloudinary failed:', err);
+    }
+  }
 
   try {
     const user = await User.findById(req.user._id);
@@ -107,10 +121,8 @@ const updateUserProfile = asyncHandler(async (req, res) => {
     if (user) {
       user.username = username || user.username;
       user.bio = bio !== undefined ? bio : user.bio;
-      user.avatar = avatar || user.avatar;
-
-      if (req.file) {
-        user.avatar = `/uploads/${req.file.filename}`;
+      if (uploadedAvatarUrl) {
+        user.avatar = uploadedAvatarUrl;
       }
 
       const updatedUser = await user.save();
@@ -132,12 +144,12 @@ const updateUserProfile = asyncHandler(async (req, res) => {
 
   res.json({
     success: true,
-    message: 'Profile updated successfully (Offline Mode)',
+    message: 'Profile updated successfully',
     user: {
       ...req.user,
       username: username || req.user.username,
-      bio: bio || req.user.bio,
-      avatar: req.file ? `/uploads/${req.file.filename}` : avatar || req.user.avatar,
+      bio: bio !== undefined ? bio : req.user.bio,
+      avatar: uploadedAvatarUrl || avatar || req.user.avatar,
     },
   });
 });
