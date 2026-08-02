@@ -11,6 +11,24 @@ const ICE_SERVERS = {
     { urls: 'stun:stun2.l.google.com:19302' },
     { urls: 'stun:stun3.l.google.com:19302' },
     { urls: 'stun:stun4.l.google.com:19302' },
+    // TURN relay fallback — needed when STUN alone can't traverse a NAT
+    // (symmetric NAT, many mobile/corporate networks). Without this,
+    // signaling can still succeed while media never actually flows.
+    {
+      urls: 'turn:openrelay.metered.ca:80',
+      username: 'openrelayproject',
+      credential: 'openrelayproject',
+    },
+    {
+      urls: 'turn:openrelay.metered.ca:443',
+      username: 'openrelayproject',
+      credential: 'openrelayproject',
+    },
+    {
+      urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+      username: 'openrelayproject',
+      credential: 'openrelayproject',
+    },
   ],
 };
 
@@ -22,6 +40,7 @@ export const SocketProvider = ({ children }) => {
 
   const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
+  const [remoteVideoActive, setRemoteVideoActive] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isCamOff, setIsCamOff] = useState(false);
 
@@ -48,6 +67,7 @@ export const SocketProvider = ({ children }) => {
     }
     setLocalStream(null);
     setRemoteStream(null);
+    setRemoteVideoActive(false);
 
     if (peerConnectionRef.current) {
       peerConnectionRef.current.onicecandidate = null;
@@ -236,6 +256,15 @@ export const SocketProvider = ({ children }) => {
         const newStream = new MediaStream([event.track]);
         setRemoteStream(newStream);
       }
+
+      // Detect the remote peer's camera going off (disabled track, tab
+      // backgrounded, etc.) so the UI can show a clear placeholder
+      // instead of a blank black video frame.
+      if (event.track.kind === 'video') {
+        setRemoteVideoActive(!event.track.muted);
+        event.track.onmute = () => setRemoteVideoActive(false);
+        event.track.onunmute = () => setRemoteVideoActive(true);
+      }
     };
 
     pc.oniceconnectionstatechange = () => {
@@ -327,6 +356,15 @@ export const SocketProvider = ({ children }) => {
         const newStream = new MediaStream([event.track]);
         setRemoteStream(newStream);
       }
+
+      // Detect the remote peer's camera going off (disabled track, tab
+      // backgrounded, etc.) so the UI can show a clear placeholder
+      // instead of a blank black video frame.
+      if (event.track.kind === 'video') {
+        setRemoteVideoActive(!event.track.muted);
+        event.track.onmute = () => setRemoteVideoActive(false);
+        event.track.onunmute = () => setRemoteVideoActive(true);
+      }
     };
 
     pc.oniceconnectionstatechange = () => {
@@ -417,6 +455,7 @@ export const SocketProvider = ({ children }) => {
         setActiveCall,
         localStream,
         remoteStream,
+        remoteVideoActive,
         isMuted,
         isCamOff,
         toggleMute,

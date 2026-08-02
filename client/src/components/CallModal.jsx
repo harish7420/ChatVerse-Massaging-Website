@@ -11,6 +11,7 @@ const CallModal = () => {
     endCall,
     localStream,
     remoteStream,
+    remoteVideoActive,
     isMuted,
     isCamOff,
     toggleMute,
@@ -88,16 +89,20 @@ const CallModal = () => {
         <div className="w-full max-w-5xl h-[90vh] sm:h-[85vh] bg-gray-950 border border-white/10 rounded-3xl overflow-hidden relative shadow-2xl flex flex-col justify-between">
           {/* Main Remote Video Container */}
           <div className="relative w-full h-full flex items-center justify-center bg-gray-900 overflow-hidden">
-            {activeCall.status === 'connected' && remoteStream ? (
-              <video
-                ref={remoteVideoRef}
-                autoPlay
-                playsInline
-                className="w-full h-full object-cover"
-              />
-            ) : (
+            {/* Always mounted so the ref is attached before the stream
+                arrives — otherwise the srcObject assignment effect (keyed
+                only on remoteStream) can fire while this element doesn't
+                exist yet, and never gets a chance to run again. */}
+            <video
+              ref={remoteVideoRef}
+              autoPlay
+              playsInline
+              className="w-full h-full object-cover"
+            />
+
+            {!(activeCall.status === 'connected' && remoteStream && remoteVideoActive) && (
               /* Fallback / Connecting State Remote View */
-              <div className="flex flex-col items-center justify-center space-y-4 p-6 text-center z-10">
+              <div className="absolute inset-0 flex flex-col items-center justify-center space-y-4 p-6 text-center z-10 bg-gray-900">
                 <div className="relative">
                   <img
                     src={getMediaUrl(targetUser?.avatar, DEFAULT_AVATAR)}
@@ -117,7 +122,9 @@ const CallModal = () => {
                     {targetUser?.username || 'Contact User'}
                   </h3>
                   <p className="text-xs sm:text-sm font-bold uppercase tracking-widest text-brand-400 mt-2 animate-pulse">
-                    {getStatusText()}
+                    {activeCall.status === 'connected' && remoteStream && !remoteVideoActive
+                      ? `Camera is off (${formatDuration(callDuration)})`
+                      : getStatusText()}
                   </p>
                 </div>
               </div>
@@ -126,19 +133,18 @@ const CallModal = () => {
             {/* Floating Picture-in-Picture Local Video Preview */}
             {localStream && (
               <div className="absolute top-4 right-4 z-20 w-32 h-44 sm:w-44 sm:h-60 rounded-2xl overflow-hidden border-2 border-brand-500/80 shadow-2xl bg-gray-900/90 backdrop-blur-md">
-                {isCamOff ? (
-                  <div className="w-full h-full flex flex-col items-center justify-center bg-gray-950 p-2 text-center">
+                <video
+                  ref={localVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-full object-cover transform -scale-x-100"
+                />
+                {isCamOff && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-950 p-2 text-center">
                     <VideoOff className="w-8 h-8 text-rose-500 mb-1" />
                     <span className="text-[10px] text-gray-400 font-medium">Camera Off</span>
                   </div>
-                ) : (
-                  <video
-                    ref={localVideoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className="w-full h-full object-cover transform -scale-x-100"
-                  />
                 )}
               </div>
             )}
