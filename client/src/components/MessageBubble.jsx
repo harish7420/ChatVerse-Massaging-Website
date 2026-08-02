@@ -1,9 +1,10 @@
 import React, { useState, useRef } from 'react';
-import { Check, CheckCheck, Smile, Reply, Trash2, Copy, FileText, Download, Play, Pause, Volume2 } from 'lucide-react';
+import { Check, CheckCheck, Reply, Trash2, Copy, FileText, Download, Play, Pause, Volume2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useChat } from '../hooks/useChat';
 import { useSocket } from '../hooks/useSocket';
 import API from '../services/api';
+import { getMediaUrl, handleImageError, DEFAULT_IMAGE_FALLBACK } from '../utils/imageUtils';
 
 const EMOJI_OPTIONS = ['👍', '❤️', '🔥', '😂', '😮', '🎉'];
 
@@ -53,18 +54,20 @@ const MessageBubble = ({ message, onOpenImageLightbox }) => {
     }
   };
 
+  const mediaAttachmentUrl = getMediaUrl(message.fileUrl, DEFAULT_IMAGE_FALLBACK);
+
   return (
-    <div className={`flex flex-col ${isOutgoing ? 'items-end' : 'items-start'} group my-1.5 select-text`}>
+    <div className={`flex flex-col ${isOutgoing ? 'items-end' : 'items-start'} group my-1.5 select-text max-w-full`}>
       {/* Sender Name in Group Chat */}
       {!isOutgoing && (
-        <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 mb-1 ml-1">
+        <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 mb-1 ml-1 truncate max-w-[200px]">
           {message.sender?.username || 'Contact'}
         </span>
       )}
 
       {/* Bubble Wrapper */}
-      <div className="relative max-w-[85%] sm:max-w-[70%]">
-        {/* Quick Hover Reaction Bar */}
+      <div className="relative max-w-[88%] sm:max-w-[70%]">
+        {/* Quick Hover & Action Bar (Available for BOTH sent & received messages) */}
         {!message.isDeleted && (
           <div
             className={`absolute -top-9 ${
@@ -94,21 +97,20 @@ const MessageBubble = ({ message, onOpenImageLightbox }) => {
             >
               <Reply className="w-3 h-3" />
             </button>
-            {isOutgoing && (
-              <button
-                onClick={() => deleteMessage(message._id)}
-                className="p-1 text-red-400 hover:text-red-600 dark:hover:text-red-300 transition-colors"
-                title="Delete Message"
-              >
-                <Trash2 className="w-3 h-3" />
-              </button>
-            )}
+            {/* Delete Message Button for ALL messages (Sent & Received) */}
+            <button
+              onClick={() => deleteMessage(message._id)}
+              className="p-1 text-red-400 hover:text-red-600 dark:hover:text-red-300 transition-colors"
+              title="Delete Message"
+            >
+              <Trash2 className="w-3 h-3" />
+            </button>
           </div>
         )}
 
         {/* Message Content Bubble Container */}
         <div
-          className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed shadow-sm transition-colors ${
+          className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed shadow-sm transition-colors break-words overflow-hidden ${
             isOutgoing
               ? 'bubble-outgoing rounded-br-xs'
               : 'bubble-incoming rounded-bl-xs'
@@ -132,20 +134,21 @@ const MessageBubble = ({ message, onOpenImageLightbox }) => {
               {message.fileType === 'image' && message.fileUrl && (
                 <div className="mb-2 overflow-hidden rounded-xl border border-black/10 dark:border-white/10 group/img relative">
                   <img
-                    src={message.fileUrl}
+                    src={mediaAttachmentUrl}
                     alt={message.fileName || 'Attachment'}
+                    onError={(e) => handleImageError(e, DEFAULT_IMAGE_FALLBACK)}
                     className="max-h-64 w-full object-cover cursor-pointer hover:scale-105 transition-transform"
-                    onClick={() => onOpenImageLightbox && onOpenImageLightbox(message.fileUrl, message.fileName)}
+                    onClick={() => onOpenImageLightbox && onOpenImageLightbox(mediaAttachmentUrl, message.fileName)}
                   />
                 </div>
               )}
 
               {/* Voice Note / Audio Player Component */}
               {(message.fileType === 'audio' || message.fileType === 'voice') && message.fileUrl && (
-                <div className="mb-2 flex items-center gap-3 p-2 px-3 bg-black/10 dark:bg-black/25 rounded-2xl border border-black/10 dark:border-white/10 min-w-[220px]">
+                <div className="mb-2 flex items-center gap-3 p-2 px-3 bg-black/10 dark:bg-black/25 rounded-2xl border border-black/10 dark:border-white/10 min-w-[200px] sm:min-w-[220px]">
                   <audio
                     ref={audioRef}
-                    src={message.fileUrl}
+                    src={getMediaUrl(message.fileUrl)}
                     onEnded={() => setIsPlayingAudio(false)}
                     className="hidden"
                   />
@@ -176,7 +179,7 @@ const MessageBubble = ({ message, onOpenImageLightbox }) => {
               {/* Document Attachment */}
               {message.fileType === 'document' && message.fileUrl && (
                 <a
-                  href={message.fileUrl}
+                  href={getMediaUrl(message.fileUrl)}
                   target="_blank"
                   rel="noreferrer"
                   className="flex items-center gap-3 p-2.5 mb-2 bg-black/10 dark:bg-black/25 rounded-xl hover:bg-black/20 dark:hover:bg-black/40 transition-colors border border-black/10 dark:border-white/10"

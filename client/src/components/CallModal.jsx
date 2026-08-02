@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { PhoneOff, Mic, MicOff, Video, VideoOff, PhoneCall, X } from 'lucide-react';
 import { useSocket } from '../hooks/useSocket';
+import { getMediaUrl, handleImageError, DEFAULT_AVATAR } from '../utils/imageUtils';
 
 const CallModal = () => {
   const { activeCall, acceptCall, rejectCall, endCall } = useSocket();
@@ -55,8 +56,9 @@ const CallModal = () => {
         <div className="space-y-4 pt-2">
           <div className="relative w-28 h-28 mx-auto">
             <img
-              src={targetUser?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300'}
+              src={getMediaUrl(targetUser?.avatar, DEFAULT_AVATAR)}
               alt={targetUser?.username || 'User'}
+              onError={(e) => handleImageError(e, DEFAULT_AVATAR)}
               className="w-28 h-28 rounded-full object-cover border-4 border-brand-500 shadow-2xl"
             />
             {(activeCall.status === 'calling' || activeCall.status === 'ringing') && (

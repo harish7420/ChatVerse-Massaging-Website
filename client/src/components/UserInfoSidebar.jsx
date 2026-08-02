@@ -3,6 +3,7 @@ import { X, Pin, VolumeX, FileText, UserX, Shield, ShieldAlert, Edit2, UserPlus,
 import { useChat } from '../hooks/useChat';
 import { useAuth } from '../hooks/useAuth';
 import API from '../services/api';
+import { getMediaUrl, handleImageError, DEFAULT_AVATAR, DEFAULT_GROUP_AVATAR, DEFAULT_IMAGE_FALLBACK } from '../utils/imageUtils';
 
 const UserInfoSidebar = ({ onClose }) => {
   const { user } = useAuth();
@@ -80,6 +81,11 @@ const UserInfoSidebar = ({ onClose }) => {
     }
   };
 
+  const cardAvatarSrc = selectedChat.isGroupChat
+    ? getMediaUrl(selectedChat.groupIcon, DEFAULT_GROUP_AVATAR)
+    : getMediaUrl(otherUser?.avatar, DEFAULT_AVATAR);
+  const cardAvatarFallback = selectedChat.isGroupChat ? DEFAULT_GROUP_AVATAR : DEFAULT_AVATAR;
+
   return (
     <div className="w-full sm:w-80 lg:w-96 h-full bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-800 flex flex-col z-20 transition-colors shadow-2xl select-none">
       {/* Header */}
@@ -100,12 +106,9 @@ const UserInfoSidebar = ({ onClose }) => {
         <div className="text-center space-y-3">
           <div className="relative w-24 h-24 mx-auto group">
             <img
-              src={
-                selectedChat.isGroupChat
-                  ? selectedChat.groupIcon || 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=200'
-                  : otherUser?.avatar
-              }
+              src={cardAvatarSrc}
               alt="Profile"
+              onError={(e) => handleImageError(e, cardAvatarFallback)}
               className="w-24 h-24 rounded-full object-cover border-2 border-brand-500 shadow-xl"
             />
             {selectedChat.isGroupChat && isCurrentUserGroupAdmin && (
@@ -205,8 +208,9 @@ const UserInfoSidebar = ({ onClose }) => {
                   <div key={memberObj._id} className="flex items-center justify-between pt-2">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <img
-                        src={memberObj.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'}
+                        src={getMediaUrl(memberObj.avatar, DEFAULT_AVATAR)}
                         alt={memberObj.username}
+                        onError={(e) => handleImageError(e, DEFAULT_AVATAR)}
                         className="w-8 h-8 rounded-full object-cover border border-gray-200 dark:border-gray-700"
                       />
                       <div className="truncate min-w-0">
@@ -288,10 +292,11 @@ const UserInfoSidebar = ({ onClose }) => {
                 {sharedImages.map((m) => (
                   <img
                     key={m._id}
-                    src={m.fileUrl}
+                    src={getMediaUrl(m.fileUrl, DEFAULT_IMAGE_FALLBACK)}
                     alt="Media"
+                    onError={(e) => handleImageError(e, DEFAULT_IMAGE_FALLBACK)}
                     className="w-full h-20 rounded-lg object-cover cursor-pointer hover:opacity-80 transition-opacity border border-gray-200 dark:border-gray-800"
-                    onClick={() => window.open(m.fileUrl, '_blank')}
+                    onClick={() => window.open(getMediaUrl(m.fileUrl, DEFAULT_IMAGE_FALLBACK), '_blank')}
                   />
                 ))}
               </div>
@@ -303,7 +308,7 @@ const UserInfoSidebar = ({ onClose }) => {
               {sharedDocs.map((m) => (
                 <a
                   key={m._id}
-                  href={m.fileUrl}
+                  href={getMediaUrl(m.fileUrl)}
                   target="_blank"
                   rel="noreferrer"
                   className="flex items-center gap-2 p-2 rounded-lg bg-gray-100 dark:bg-gray-800/50 hover:bg-gray-200 dark:hover:bg-gray-800 text-xs text-gray-900 dark:text-gray-200 border border-gray-200 dark:border-gray-700/50"
@@ -355,7 +360,12 @@ const UserInfoSidebar = ({ onClose }) => {
                     className="flex items-center justify-between p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800"
                   >
                     <div className="flex items-center gap-2">
-                      <img src={u.avatar} alt={u.username} className="w-8 h-8 rounded-full object-cover" />
+                      <img
+                        src={getMediaUrl(u.avatar, DEFAULT_AVATAR)}
+                        alt={u.username}
+                        onError={(e) => handleImageError(e, DEFAULT_AVATAR)}
+                        className="w-8 h-8 rounded-full object-cover"
+                      />
                       <span className="text-xs font-semibold text-gray-900 dark:text-white">{u.username}</span>
                     </div>
                     <button

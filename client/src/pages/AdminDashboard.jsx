@@ -5,6 +5,7 @@ import Navbar from '../components/Navbar';
 import Toast from '../components/Toast';
 import FeedbackModal from '../components/FeedbackModal';
 import { useAuth } from '../hooks/useAuth';
+import { getMediaUrl, handleImageError, DEFAULT_AVATAR } from '../utils/imageUtils';
 
 const AdminDashboard = () => {
   const { toast, showToast } = useAuth();
@@ -223,8 +224,9 @@ const AdminDashboard = () => {
                     <tr key={usr._id} className={`transition-colors ${usr.isSuspended ? 'bg-rose-500/5' : 'hover:bg-gray-50 dark:hover:bg-gray-800/40'}`}>
                       <td className="py-3.5 px-4 flex items-center gap-3">
                         <img
-                          src={usr.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200'}
+                          src={getMediaUrl(usr.avatar, DEFAULT_AVATAR)}
                           alt="Avatar"
+                          onError={(e) => handleImageError(e, DEFAULT_AVATAR)}
                           className="w-9 h-9 rounded-full object-cover border border-gray-300 dark:border-gray-700"
                         />
                         <div>
@@ -320,8 +322,9 @@ const AdminDashboard = () => {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
                       <img
-                        src={fb.user?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'}
+                        src={getMediaUrl(fb.user?.avatar, DEFAULT_AVATAR)}
                         alt="User"
+                        onError={(e) => handleImageError(e, DEFAULT_AVATAR)}
                         className="w-8 h-8 rounded-full object-cover"
                       />
                       <div>

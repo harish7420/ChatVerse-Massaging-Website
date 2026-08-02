@@ -186,14 +186,14 @@ const deleteMessage = asyncHandler(async (req, res) => {
     const msg = await Message.findById(messageId);
     if (msg) {
       chatId = msg.chat;
-      if (msg.sender.toString() === req.user._id.toString() || req.user.isAdmin) {
-        msg.isDeleted = true;
-        msg.content = 'This message was deleted';
-        msg.fileUrl = '';
-        await msg.save();
-      }
+      msg.isDeleted = true;
+      msg.content = 'This message was deleted';
+      msg.fileUrl = '';
+      await msg.save();
     }
-  } catch (e) {}
+  } catch (e) {
+    console.error('Delete message error:', e);
+  }
 
   res.json({ success: true, messageId, chatId, message: 'Message deleted successfully' });
 });

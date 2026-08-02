@@ -3,6 +3,7 @@ import { X, Plus, Sparkles, Send, Eye, ChevronLeft, ChevronRight, Image as Image
 import { useAuth } from '../hooks/useAuth';
 import { useSocket } from '../hooks/useSocket';
 import API from '../services/api';
+import { getMediaUrl, handleImageError, DEFAULT_AVATAR, DEFAULT_IMAGE_FALLBACK } from '../utils/imageUtils';
 
 const GRADIENT_PALETTES = [
   'from-brand-600 to-indigo-800',
@@ -211,13 +212,14 @@ const StatusStoriesModal = ({ isOpen, onClose }) => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <img
-                src={currentStatusGroup?.user.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'}
-                alt={currentStatusGroup?.user.username}
+                src={getMediaUrl(currentStatusGroup?.user?.avatar, DEFAULT_AVATAR)}
+                alt={currentStatusGroup?.user?.username}
+                onError={(e) => handleImageError(e, DEFAULT_AVATAR)}
                 className="w-10 h-10 rounded-full object-cover border-2 border-brand-500"
               />
               <div>
                 <h4 className="text-sm font-bold text-white leading-tight">
-                  {currentStatusGroup?.user.username || 'Contact'}
+                  {currentStatusGroup?.user?.username || 'Contact'}
                 </h4>
                 <p className="text-[11px] text-gray-300">
                   {currentStory?.createdAt
@@ -266,8 +268,9 @@ const StatusStoriesModal = ({ isOpen, onClose }) => {
             currentStory.type === 'image' ? (
               <div className="w-full h-full relative flex flex-col justify-center items-center">
                 <img
-                  src={currentStory.mediaUrl}
+                  src={getMediaUrl(currentStory.mediaUrl, DEFAULT_IMAGE_FALLBACK)}
                   alt="Status"
+                  onError={(e) => handleImageError(e, DEFAULT_IMAGE_FALLBACK)}
                   className="w-full h-full object-cover"
                 />
                 {currentStory.content && (
@@ -280,7 +283,7 @@ const StatusStoriesModal = ({ isOpen, onClose }) => {
               <div className="w-full h-full relative flex flex-col justify-center items-center bg-black">
                 <video
                   ref={videoRef}
-                  src={currentStory.mediaUrl}
+                  src={getMediaUrl(currentStory.mediaUrl)}
                   autoPlay
                   playsInline
                   controls
@@ -351,8 +354,9 @@ const StatusStoriesModal = ({ isOpen, onClose }) => {
                 currentStory.viewers.map((vw, idx) => (
                   <div key={idx} className="flex items-center gap-3 pt-2">
                     <img
-                      src={vw.user?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'}
+                      src={getMediaUrl(vw.user?.avatar, DEFAULT_AVATAR)}
                       alt={vw.user?.username}
+                      onError={(e) => handleImageError(e, DEFAULT_AVATAR)}
                       className="w-8 h-8 rounded-full object-cover border border-gray-700"
                     />
                     <div className="min-w-0 flex-1">

@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Camera, User, Mail, FileText, Save, Shield } from 'lucide-react';
+import { Camera, User, Mail, FileText, Save } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import Navbar from '../components/Navbar';
 import Toast from '../components/Toast';
 import FeedbackModal from '../components/FeedbackModal';
+import { getMediaUrl, handleImageError, DEFAULT_AVATAR } from '../utils/imageUtils';
 
 const ProfilePage = () => {
   const { user, updateUserProfile, loading, toast } = useAuth();
@@ -11,7 +12,7 @@ const ProfilePage = () => {
   const [username, setUsername] = useState(user?.username || '');
   const [bio, setBio] = useState(user?.bio || '');
   const [selectedFile, setSelectedFile] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(user?.avatar || '');
+  const [previewUrl, setPreviewUrl] = useState(getMediaUrl(user?.avatar, DEFAULT_AVATAR));
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
 
   const handleAvatarChange = (e) => {
@@ -50,6 +51,7 @@ const ProfilePage = () => {
               <img
                 src={previewUrl}
                 alt="Avatar"
+                onError={(e) => handleImageError(e, DEFAULT_AVATAR)}
                 className="w-28 h-28 rounded-full object-cover border-4 border-brand-500/50 shadow-xl"
               />
               <label className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
@@ -77,7 +79,7 @@ const ProfilePage = () => {
             <div className="space-y-1">
               <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">Email Address (Read-only)</label>
               <div className="relative">
-                <Mail className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+                <User className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
                 <input
                   type="email"
                   disabled

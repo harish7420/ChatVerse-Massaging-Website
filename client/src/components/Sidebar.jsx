@@ -4,6 +4,7 @@ import { useChat } from '../hooks/useChat';
 import { useSocket } from '../hooks/useSocket';
 import { useAuth } from '../hooks/useAuth';
 import API from '../services/api';
+import { getMediaUrl, handleImageError, DEFAULT_AVATAR, DEFAULT_GROUP_AVATAR } from '../utils/imageUtils';
 
 const Sidebar = ({ onOpenCreateGroup, onOpenStories }) => {
   const { user } = useAuth();
@@ -76,14 +77,15 @@ const Sidebar = ({ onOpenCreateGroup, onOpenStories }) => {
         setSearchQuery('');
       }
     } catch (e) {
-      // Demo fallback
+      const targetUserObj = searchResults.find((u) => u._id === targetUserId) || {
+        _id: targetUserId,
+        username: 'Chat Contact',
+        avatar: DEFAULT_AVATAR,
+      };
       const mockChat = {
         _id: 'chat_' + targetUserId,
         isGroupChat: false,
-        users: [
-          user,
-          { _id: targetUserId, username: 'Contact User', avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150' },
-        ],
+        users: [user, targetUserObj],
       };
       handleSelectChat(mockChat);
       setSearchQuery('');
@@ -142,8 +144,9 @@ const Sidebar = ({ onOpenCreateGroup, onOpenStories }) => {
             >
               <div className="relative">
                 <img
-                  src={user?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'}
-                  alt="My Status"
+                  src={getMediaUrl(user?.avatar, DEFAULT_AVATAR)}
+                  alt={user?.username || 'My Status'}
+                  onError={(e) => handleImageError(e, DEFAULT_AVATAR)}
                   className="w-11 h-11 rounded-full object-cover border-2 border-gray-300 dark:border-gray-700 p-0.5 group-hover:scale-105 transition-transform"
                 />
                 <span className="w-4 h-4 rounded-full bg-brand-600 text-white flex items-center justify-center text-xs font-bold absolute bottom-0 right-0 border border-white dark:border-gray-900">
@@ -155,22 +158,23 @@ const Sidebar = ({ onOpenCreateGroup, onOpenStories }) => {
 
             {/* Contact Status Stories */}
             {activeStatuses.map((stGroup) => {
-              if (stGroup.user._id === user?._id) return null;
+              if (stGroup.user?._id === user?._id) return null;
               return (
                 <div
-                  key={stGroup.user._id}
+                  key={stGroup.user?._id || Math.random()}
                   onClick={onOpenStories}
                   className="flex flex-col items-center gap-1 cursor-pointer flex-shrink-0 group"
                 >
                   <div className="p-0.5 rounded-full bg-gradient-to-tr from-brand-500 via-indigo-500 to-pink-500 group-hover:scale-105 transition-transform">
                     <img
-                      src={stGroup.user.avatar}
-                      alt={stGroup.user.username}
+                      src={getMediaUrl(stGroup.user?.avatar, DEFAULT_AVATAR)}
+                      alt={stGroup.user?.username || 'Status'}
+                      onError={(e) => handleImageError(e, DEFAULT_AVATAR)}
                       className="w-10 h-10 rounded-full object-cover border-2 border-white dark:border-gray-900"
                     />
                   </div>
                   <span className="text-[10px] font-medium text-gray-600 dark:text-gray-400 truncate max-w-[50px]">
-                    {stGroup.user.username}
+                    {stGroup.user?.username || 'Contact'}
                   </span>
                 </div>
               );
@@ -229,8 +233,9 @@ const Sidebar = ({ onOpenCreateGroup, onOpenStories }) => {
                 >
                   <div className="relative">
                     <img
-                      src={usr.avatar}
+                      src={getMediaUrl(usr.avatar, DEFAULT_AVATAR)}
                       alt={usr.username}
+                      onError={(e) => handleImageError(e, DEFAULT_AVATAR)}
                       className="w-11 h-11 rounded-full object-cover border border-gray-200 dark:border-gray-700"
                     />
                     {usr.isOnline && (
@@ -267,6 +272,11 @@ const Sidebar = ({ onOpenCreateGroup, onOpenStories }) => {
                 const isMuted = chat.mutedBy?.includes(user?._id) || chat.isMuted;
                 const isBlocked = otherUser ? blockedUserIds.has(otherUser._id) : false;
 
+                const avatarSrc = chat.isGroupChat
+                  ? getMediaUrl(chat.groupIcon, DEFAULT_GROUP_AVATAR)
+                  : getMediaUrl(otherUser?.avatar, DEFAULT_AVATAR);
+                const avatarFallback = chat.isGroupChat ? DEFAULT_GROUP_AVATAR : DEFAULT_AVATAR;
+
                 return (
                   <div
                     key={chat._id}
@@ -280,12 +290,9 @@ const Sidebar = ({ onOpenCreateGroup, onOpenStories }) => {
                     {/* Avatar Badge */}
                     <div className="relative flex-shrink-0">
                       <img
-                        src={
-                          chat.isGroupChat
-                            ? chat.groupIcon || 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=200'
-                            : otherUser?.avatar
-                        }
-                        alt={chat.chatName}
+                        src={avatarSrc}
+                        alt={chat.chatName || otherUser?.username || 'Avatar'}
+                        onError={(e) => handleImageError(e, avatarFallback)}
                         className="w-12 h-12 rounded-full object-cover border border-gray-200 dark:border-gray-700"
                       />
                       {!chat.isGroupChat && isOnline && !isBlocked && (

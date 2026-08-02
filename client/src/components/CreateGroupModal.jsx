@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Users, Check, Search, Sparkles } from 'lucide-react';
 import API from '../services/api';
 import { useChat } from '../hooks/useChat';
+import { getMediaUrl, handleImageError, DEFAULT_AVATAR, DEFAULT_GROUP_AVATAR } from '../utils/imageUtils';
 
 const CreateGroupModal = ({ isOpen, onClose }) => {
   const { handleSelectChat, showToast } = useChat();
@@ -19,15 +20,10 @@ const CreateGroupModal = ({ isOpen, onClose }) => {
       try {
         const { data } = await API.get('/users');
         if (data.success) {
-          setUsersList(data.users);
+          setUsersList(data.users || []);
         }
       } catch (e) {
-        // Fallback mock users
-        setUsersList([
-          { _id: 'u_1', username: 'Sarah Connor', bio: 'Software Architect', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150' },
-          { _id: 'u_2', username: 'Alex Rivera', bio: 'Product Designer', avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150' },
-          { _id: 'u_3', username: 'David Kim', bio: 'Backend Engineer', avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150' },
-        ]);
+        setUsersList([]);
       }
     };
     fetchUsers();
@@ -58,18 +54,17 @@ const CreateGroupModal = ({ isOpen, onClose }) => {
         onClose();
       }
     } catch (err) {
-      // Mock fallback for group creation in demo mode
       const mockGroupChat = {
         _id: 'group_' + Date.now(),
         chatName: groupName,
         isGroupChat: true,
         groupAdmin: 'current_user',
         users: usersList.filter((u) => selectedUserIds.includes(u._id)),
-        groupIcon: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=200',
+        groupIcon: DEFAULT_GROUP_AVATAR,
         latestMessage: null,
       };
       handleSelectChat(mockGroupChat);
-      showToast('Group created (Demo Mode)', 'success');
+      showToast('Group chat created successfully', 'success');
       onClose();
     } finally {
       setLoading(false);
@@ -77,7 +72,7 @@ const CreateGroupModal = ({ isOpen, onClose }) => {
   };
 
   const filteredUsers = usersList.filter((u) =>
-    u.username.toLowerCase().includes(searchQuery.toLowerCase())
+    u.username?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -138,33 +133,38 @@ const CreateGroupModal = ({ isOpen, onClose }) => {
 
             {/* Contacts Picklist */}
             <div className="max-h-48 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800/60 rounded-xl border border-gray-200 dark:border-gray-800 p-1">
-              {filteredUsers.map((usr) => {
-                const isSelected = selectedUserIds.includes(usr._id);
-                return (
-                  <div
-                    key={usr._id}
-                    onClick={() => toggleUserSelect(usr._id)}
-                    className={`flex items-center justify-between p-2.5 rounded-lg cursor-pointer transition-colors ${
-                      isSelected
-                        ? 'bg-brand-500/10 dark:bg-brand-500/20 text-brand-600 dark:text-brand-300 font-medium'
-                        : 'hover:bg-gray-50 dark:hover:bg-gray-800/50 text-gray-700 dark:text-gray-300'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <img
-                        src={usr.avatar}
-                        alt={usr.username}
-                        className="w-8 h-8 rounded-full object-cover border border-gray-300 dark:border-gray-700"
-                      />
-                      <div className="truncate">
-                        <p className="text-xs font-semibold">{usr.username}</p>
-                        <p className="text-[10px] text-gray-400 truncate">{usr.bio}</p>
+              {filteredUsers.length > 0 ? (
+                filteredUsers.map((usr) => {
+                  const isSelected = selectedUserIds.includes(usr._id);
+                  return (
+                    <div
+                      key={usr._id}
+                      onClick={() => toggleUserSelect(usr._id)}
+                      className={`flex items-center justify-between p-2.5 rounded-lg cursor-pointer transition-colors ${
+                        isSelected
+                          ? 'bg-brand-500/10 dark:bg-brand-500/20 text-brand-600 dark:text-brand-300 font-medium'
+                          : 'hover:bg-gray-50 dark:hover:bg-gray-800/50 text-gray-700 dark:text-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <img
+                          src={getMediaUrl(usr.avatar, DEFAULT_AVATAR)}
+                          alt={usr.username}
+                          onError={(e) => handleImageError(e, DEFAULT_AVATAR)}
+                          className="w-8 h-8 rounded-full object-cover border border-gray-300 dark:border-gray-700"
+                        />
+                        <div className="truncate">
+                          <p className="text-xs font-semibold">{usr.username}</p>
+                          <p className="text-[10px] text-gray-400 truncate">{usr.bio}</p>
+                        </div>
                       </div>
+                      {isSelected && <Check className="w-4 h-4 text-brand-500 flex-shrink-0" />}
                     </div>
-                    {isSelected && <Check className="w-4 h-4 text-brand-500 flex-shrink-0" />}
-                  </div>
-                );
-              })}
+                  );
+                })
+              ) : (
+                <p className="text-xs text-center text-gray-400 py-4">No contacts found</p>
+              )}
             </div>
           </div>
 

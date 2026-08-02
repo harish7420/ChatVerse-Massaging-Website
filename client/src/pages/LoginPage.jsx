@@ -19,12 +19,12 @@ const LoginPage = () => {
     }
   };
 
-  const fillDemoAdmin = () => {
+  const fillAdminCredentials = () => {
     setEmail('admin@chatverse.com');
     setPassword('admin123');
   };
 
-  const fillDemoUser = () => {
+  const fillUserCredentials = () => {
     setEmail('user@chatverse.com');
     setPassword('user123');
   };
@@ -90,25 +90,25 @@ const LoginPage = () => {
             </button>
           </form>
 
-          {/* Quick Demo Credentials */}
+          {/* Quick Autofill Credentials */}
           <div className="pt-4 border-t border-gray-200 dark:border-gray-800 space-y-2">
             <p className="text-[11px] text-center text-gray-500 dark:text-gray-400 flex items-center justify-center gap-1">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" /> Quick Demo Autofill:
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" /> Quick Autofill Options:
             </p>
             <div className="flex flex-col sm:flex-row gap-2">
               <button
                 type="button"
-                onClick={fillDemoAdmin}
+                onClick={fillAdminCredentials}
                 className="flex-1 py-2 sm:py-1.5 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-xs text-gray-700 dark:text-gray-300 font-semibold transition-colors"
               >
-                Demo Admin
+                Admin Account
               </button>
               <button
                 type="button"
-                onClick={fillDemoUser}
+                onClick={fillUserCredentials}
                 className="flex-1 py-2 sm:py-1.5 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-xs text-gray-700 dark:text-gray-300 font-semibold transition-colors"
               >
-                Demo User
+                User Account
               </button>
             </div>
           </div>

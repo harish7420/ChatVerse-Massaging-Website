@@ -102,6 +102,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/message', messageRoutes);
+app.use('/api/messages', messageRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/status', require('./routes/statusRoutes'));
 app.use('/api/feedback', require('./routes/feedbackRoutes'));

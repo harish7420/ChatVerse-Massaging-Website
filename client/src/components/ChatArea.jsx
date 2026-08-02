@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useSocket } from '../hooks/useSocket';
 import MessageBubble from './MessageBubble';
 import MessageInput from './MessageInput';
+import { getMediaUrl, handleImageError, DEFAULT_AVATAR, DEFAULT_GROUP_AVATAR } from '../utils/imageUtils';
 
 const ChatArea = ({ onToggleUserInfo, onOpenImageLightbox }) => {
   const { user } = useAuth();
@@ -31,7 +32,7 @@ const ChatArea = ({ onToggleUserInfo, onOpenImageLightbox }) => {
 
   if (!selectedChat) {
     return (
-      <div className="flex-1 h-full flex flex-col items-center justify-center p-8 bg-gray-50 dark:bg-gray-900/60 text-center select-none transition-colors">
+      <div className="flex-1 h-full flex flex-col items-center justify-center p-8 bg-gray-50 dark:bg-gray-900/60 text-center select-none transition-colors w-full">
         <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-brand-600/30 to-indigo-500/20 flex items-center justify-center text-brand-500 mb-6 border border-brand-500/30 shadow-2xl animate-float">
           <Sparkles className="w-10 h-10" />
         </div>
@@ -48,15 +49,22 @@ const ChatArea = ({ onToggleUserInfo, onOpenImageLightbox }) => {
     ? messages.filter((m) => m.content?.toLowerCase().includes(searchQuery.toLowerCase()))
     : messages;
 
+  const headerAvatarSrc = selectedChat.isGroupChat
+    ? getMediaUrl(selectedChat.groupIcon, DEFAULT_GROUP_AVATAR)
+    : getMediaUrl(otherUser?.avatar, DEFAULT_AVATAR);
+
+  const headerAvatarFallback = selectedChat.isGroupChat ? DEFAULT_GROUP_AVATAR : DEFAULT_AVATAR;
+
   return (
-    <div className="flex-1 h-full flex flex-col bg-gray-50 dark:bg-gray-950 relative min-w-0 transition-colors">
+    <div className="flex-1 h-full flex flex-col bg-gray-50 dark:bg-gray-950 relative min-w-0 transition-colors w-full overflow-hidden">
       {/* Top Chat Header */}
-      <header className="h-16 px-4 md:px-6 bg-white/90 dark:bg-gray-900/90 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between z-10 backdrop-blur-md transition-colors">
-        <div className="flex items-center gap-3 min-w-0">
-          {/* Back button for mobile view */}
+      <header className="h-16 px-3 sm:px-4 md:px-6 bg-white/90 dark:bg-gray-900/90 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between z-10 backdrop-blur-md transition-colors w-full">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+          {/* Back button for mobile view (returns to Sidebar) */}
           <button
             onClick={() => handleSelectChat(null)}
-            className="md:hidden p-1.5 rounded-lg text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+            className="md:hidden p-1.5 rounded-lg text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white flex-shrink-0"
+            title="Back to Chats"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
@@ -64,12 +72,9 @@ const ChatArea = ({ onToggleUserInfo, onOpenImageLightbox }) => {
           {/* Avatar */}
           <div className="relative flex-shrink-0 cursor-pointer" onClick={onToggleUserInfo}>
             <img
-              src={
-                selectedChat.isGroupChat
-                  ? selectedChat.groupIcon || 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=200'
-                  : otherUser?.avatar
-              }
-              alt="Avatar"
+              src={headerAvatarSrc}
+              alt={selectedChat.isGroupChat ? selectedChat.chatName : otherUser?.username || 'Avatar'}
+              onError={(e) => handleImageError(e, headerAvatarFallback)}
               className="w-10 h-10 rounded-full object-cover border border-gray-200 dark:border-gray-700"
             />
             {!selectedChat.isGroupChat && isOnline && !isBlockedEither && (
@@ -78,7 +83,7 @@ const ChatArea = ({ onToggleUserInfo, onOpenImageLightbox }) => {
           </div>
 
           {/* Name & Online Status */}
-          <div className="min-w-0 cursor-pointer" onClick={onToggleUserInfo}>
+          <div className="min-w-0 cursor-pointer flex-1" onClick={onToggleUserInfo}>
             <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">
               {selectedChat.isGroupChat ? selectedChat.chatName : otherUser?.username || 'Contact'}
             </h3>
@@ -95,7 +100,7 @@ const ChatArea = ({ onToggleUserInfo, onOpenImageLightbox }) => {
         </div>
 
         {/* Action Controls */}
-        <div className="flex items-center gap-1 sm:gap-2">
+        <div className="flex items-center gap-0.5 sm:gap-2 flex-shrink-0">
           {/* In-Chat Search Bar Toggle */}
           {showInChatSearch ? (
             <div className="relative flex items-center">
@@ -103,9 +108,9 @@ const ChatArea = ({ onToggleUserInfo, onOpenImageLightbox }) => {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search message..."
+                placeholder="Search..."
                 autoFocus
-                className="w-36 sm:w-48 px-3 py-1.5 text-xs rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 focus:outline-none"
+                className="w-28 sm:w-48 px-2.5 py-1 text-xs rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 focus:outline-none"
               />
               <button
                 onClick={() => {
@@ -120,7 +125,7 @@ const ChatArea = ({ onToggleUserInfo, onOpenImageLightbox }) => {
           ) : (
             <button
               onClick={() => setShowInChatSearch(true)}
-              className="p-2 rounded-xl text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              className="p-1.5 sm:p-2 rounded-xl text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
               title="Search Messages"
             >
               <Search className="w-5 h-5" />
@@ -130,7 +135,7 @@ const ChatArea = ({ onToggleUserInfo, onOpenImageLightbox }) => {
           <button
             onClick={() => otherUser && !isBlockedEither && initiateCall(otherUser, 'audio')}
             disabled={isBlockedEither || selectedChat.isGroupChat}
-            className="p-2 rounded-xl text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="p-1.5 sm:p-2 rounded-xl text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             title="Start Audio Call"
           >
             <Phone className="w-5 h-5" />
@@ -138,14 +143,14 @@ const ChatArea = ({ onToggleUserInfo, onOpenImageLightbox }) => {
           <button
             onClick={() => otherUser && !isBlockedEither && initiateCall(otherUser, 'video')}
             disabled={isBlockedEither || selectedChat.isGroupChat}
-            className="p-2 rounded-xl text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="p-1.5 sm:p-2 rounded-xl text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             title="Start Video Call"
           >
             <Video className="w-5 h-5" />
           </button>
           <button
             onClick={onToggleUserInfo}
-            className="p-2 rounded-xl text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            className="p-1.5 sm:p-2 rounded-xl text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
             title="User Profile Info"
           >
             <Info className="w-5 h-5" />
@@ -154,7 +159,7 @@ const ChatArea = ({ onToggleUserInfo, onOpenImageLightbox }) => {
       </header>
 
       {/* Messages Timeline Canvas with Pattern Wallpaper */}
-      <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-2 chat-pattern">
+      <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 space-y-2 chat-pattern w-full">
         {loadingMessages ? (
           <div className="flex items-center justify-center h-full text-sm text-gray-400">
             Loading messages history...
@@ -189,9 +194,9 @@ const ChatArea = ({ onToggleUserInfo, onOpenImageLightbox }) => {
 
       {/* Block Restrictions Warning Banner or Message Input Bar */}
       {isBlockedEither ? (
-        <div className="p-4 bg-gray-100 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 text-center space-y-2">
+        <div className="p-3 sm:p-4 bg-gray-100 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 text-center space-y-2 w-full">
           <div className="flex items-center justify-center gap-2 text-rose-500 font-semibold text-xs">
-            <ShieldAlert className="w-4 h-4" />
+            <ShieldAlert className="w-4 h-4 flex-shrink-0" />
             <span>
               {isBlockedByMe
                 ? 'You have blocked this contact. Unblock to send messages or make calls.'

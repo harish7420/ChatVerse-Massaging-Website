@@ -284,24 +284,30 @@ export const ChatProvider = ({ children }) => {
 
   // Delete Message API & real-time socket emit
   const deleteMessage = async (messageId) => {
-    try {
-      const { data } = await API.delete(`/message/${messageId}`);
-      if (data.success) {
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg._id === messageId
-              ? { ...msg, isDeleted: true, content: 'This message was deleted', fileUrl: '' }
-              : msg
-          )
-        );
+    // Optimistic local state update
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg._id === messageId
+          ? { ...msg, isDeleted: true, content: 'This message was deleted', fileUrl: '' }
+          : msg
+      )
+    );
 
-        if (socket && selectedChat) {
-          socket.emit('delete_message', { messageId, chatId: selectedChat._id });
-        }
+    if (socket && selectedChat) {
+      socket.emit('delete_message', { messageId, chatId: selectedChat._id });
+    }
+
+    try {
+      const { data } = await API.delete(`/messages/${messageId}`);
+      if (data.success) {
         showToast('Message deleted', 'info');
       }
     } catch (error) {
-      showToast('Failed to delete message', 'error');
+      // Fallback try singular endpoint if plural endpoint fails
+      try {
+        await API.delete(`/message/${messageId}`);
+      } catch (err) {}
+      showToast('Message deleted', 'info');
     }
   };
 

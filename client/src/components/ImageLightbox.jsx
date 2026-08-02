@@ -1,8 +1,11 @@
 import React from 'react';
-import { X, Download, ExternalLink } from 'lucide-react';
+import { X, Download } from 'lucide-react';
+import { getMediaUrl, handleImageError, DEFAULT_IMAGE_FALLBACK } from '../utils/imageUtils';
 
 const ImageLightbox = ({ imageUrl, fileName, onClose }) => {
   if (!imageUrl) return null;
+
+  const fullUrl = getMediaUrl(imageUrl, DEFAULT_IMAGE_FALLBACK);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center modal-backdrop p-4 animate-fade-in select-none">
@@ -12,7 +15,7 @@ const ImageLightbox = ({ imageUrl, fileName, onClose }) => {
       {/* Control Bar */}
       <div className="absolute top-4 right-4 z-10 flex items-center gap-3">
         <a
-          href={imageUrl}
+          href={fullUrl}
           target="_blank"
           rel="noopener noreferrer"
           download={fileName || 'attachment'}
@@ -33,8 +36,9 @@ const ImageLightbox = ({ imageUrl, fileName, onClose }) => {
       {/* Image View */}
       <div className="relative z-10 max-w-5xl max-h-[85vh] p-2 flex flex-col items-center">
         <img
-          src={imageUrl}
+          src={fullUrl}
           alt={fileName || 'Enlarged Attachment'}
+          onError={(e) => handleImageError(e, DEFAULT_IMAGE_FALLBACK)}
           className="max-h-[80vh] max-w-full object-contain rounded-2xl shadow-2xl border border-white/10"
         />
         {fileName && (
