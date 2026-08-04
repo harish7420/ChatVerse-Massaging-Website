@@ -20,29 +20,10 @@ const getRTCConfig = () => {
     { urls: 'stun:stun2.l.google.com:19302' },
     { urls: 'stun:stun3.l.google.com:19302' },
     { urls: 'stun:stun4.l.google.com:19302' },
-<<<<<<< HEAD
+    { urls: 'stun:global.stun.twilio.com:3478' },
     // TURN relay fallback — needed when STUN alone can't traverse a NAT
     // (symmetric NAT, many mobile/corporate networks). Without this,
     // signaling can still succeed while media never actually flows.
-    {
-      urls: 'turn:openrelay.metered.ca:80',
-      username: 'openrelayproject',
-      credential: 'openrelayproject',
-    },
-    {
-      urls: 'turn:openrelay.metered.ca:443',
-      username: 'openrelayproject',
-      credential: 'openrelayproject',
-    },
-    {
-      urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-      username: 'openrelayproject',
-      credential: 'openrelayproject',
-    },
-  ],
-=======
-    { urls: 'stun:global.stun.twilio.com:3478' },
-    // Public TURN Relay Fallbacks (Metered OpenRelay)
     {
       urls: 'turn:openrelay.metered.ca:80',
       username: 'openrelay',
@@ -80,7 +61,6 @@ const getRTCConfig = () => {
     rtcpMuxPolicy: 'require',
     iceCandidatePoolSize: 10,
   };
->>>>>>> 8190a49 (Update Network Connection and Chat delete Feature)
 };
 
 export const SocketProvider = ({ children }) => {

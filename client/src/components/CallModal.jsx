@@ -95,7 +95,6 @@ const CallModal = () => {
         <div className="w-full max-w-5xl h-[90vh] sm:h-[85vh] bg-gray-950 border border-white/10 rounded-3xl overflow-hidden relative shadow-2xl flex flex-col justify-between">
           {/* Main Remote Video Container */}
           <div className="relative w-full h-full flex items-center justify-center bg-gray-900 overflow-hidden">
-<<<<<<< HEAD
             {/* Always mounted so the ref is attached before the stream
                 arrives — otherwise the srcObject assignment effect (keyed
                 only on remoteStream) can fire while this element doesn't
@@ -107,17 +106,7 @@ const CallModal = () => {
               className="w-full h-full object-cover"
             />
 
-            {!(activeCall.status === 'connected' && remoteStream && remoteVideoActive) && (
-=======
-            {activeCall.status === 'connected' && hasRemoteVideoTrack ? (
-              <video
-                ref={remoteVideoRef}
-                autoPlay
-                playsInline
-                className="w-full h-full object-cover"
-              />
-            ) : (
->>>>>>> 8190a49 (Update Network Connection and Chat delete Feature)
+            {!(activeCall.status === 'connected' && hasRemoteVideoTrack) && (
               /* Fallback / Connecting State Remote View */
               <div className="absolute inset-0 flex flex-col items-center justify-center space-y-4 p-6 text-center z-10 bg-gray-900">
                 <div className="relative">
@@ -139,13 +128,8 @@ const CallModal = () => {
                     {targetUser?.username || 'Contact User'}
                   </h3>
                   <p className="text-xs sm:text-sm font-bold uppercase tracking-widest text-brand-400 mt-2 animate-pulse">
-<<<<<<< HEAD
-                    {activeCall.status === 'connected' && remoteStream && !remoteVideoActive
-                      ? `Camera is off (${formatDuration(callDuration)})`
-=======
                     {activeCall.status === 'connected' && !hasRemoteVideoTrack
-                      ? 'Camera is Off'
->>>>>>> 8190a49 (Update Network Connection and Chat delete Feature)
+                      ? `Camera is off (${formatDuration(callDuration)})`
                       : getStatusText()}
                   </p>
                 </div>
