@@ -11,6 +11,13 @@ const chatSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    conversationKey: {
+      type: String,
+      trim: true,
+      index: true,
+      sparse: true,
+      unique: true,
+    },
     groupAdmin: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
@@ -62,6 +69,9 @@ const chatSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+chatSchema.index({ users: 1 });
+chatSchema.index({ updatedAt: -1 });
 
 const Chat = mongoose.model('Chat', chatSchema);
 module.exports = Chat;

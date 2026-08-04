@@ -77,6 +77,33 @@ const socketHandler = (io) => {
       }
     });
 
+    // Conversation Delete & Clear Sync Across Connected Clients
+    socket.on('delete_chat', ({ chatId, recipientId }) => {
+      console.log(`[Socket] Chat Deleted sync for chatId: ${chatId}`);
+      if (chatId) {
+        io.in(chatId.toString()).emit('chat_deleted', { chatId });
+      }
+      if (recipientId) {
+        const targetSocketId = onlineUsersMap.get(recipientId.toString());
+        if (targetSocketId) {
+          io.to(targetSocketId).emit('chat_deleted', { chatId });
+        }
+      }
+    });
+
+    socket.on('clear_chat', ({ chatId, recipientId }) => {
+      console.log(`[Socket] Chat Cleared sync for chatId: ${chatId}`);
+      if (chatId) {
+        io.in(chatId.toString()).emit('chat_cleared', { chatId });
+      }
+      if (recipientId) {
+        const targetSocketId = onlineUsersMap.get(recipientId.toString());
+        if (targetSocketId) {
+          io.to(targetSocketId).emit('chat_cleared', { chatId });
+        }
+      }
+    });
+
     // Status Updates Sync
     socket.on('status_posted', (newStatus) => {
       socket.broadcast.emit('status_posted', newStatus);
@@ -111,11 +138,13 @@ const socketHandler = (io) => {
       io.in(chatId).emit('message_reaction', { messageId, chatId, reaction });
     });
 
-    // WebRTC Real-Time Calling Signals (WhatsApp Behavior)
+    // WebRTC Real-Time Calling Signals (WhatsApp & Zoom-grade cross-network signaling)
     socket.on('call_user', ({ userToCall, signalData, from, callType }) => {
       if (!userToCall) return;
-      const targetUserId = userToCall.toString();
+      const targetUserId = typeof userToCall === 'string' ? userToCall : userToCall._id?.toString() || userToCall.toString();
       const targetSocketId = onlineUsersMap.get(targetUserId);
+
+      console.log(`[WebRTC Socket] Call offer initiated from ${from?.username || socket.userId} to ${targetUserId} (${callType})`);
 
       if (targetSocketId) {
         io.to(targetSocketId).emit('incoming_call', {
@@ -125,14 +154,17 @@ const socketHandler = (io) => {
         });
         socket.emit('call_ringing', { message: 'Ringing...' });
       } else {
-        // Even if user is offline, let caller display "Calling..." for ringing duration
+        console.log(`[WebRTC Socket] User ${targetUserId} is offline or unreachable`);
         socket.emit('call_ringing', { message: 'Calling...' });
       }
     });
 
     socket.on('answer_call', (data) => {
       if (!data || !data.to) return;
-      const targetSocketId = onlineUsersMap.get(data.to.toString());
+      const targetUserId = typeof data.to === 'string' ? data.to : data.to._id?.toString() || data.to.toString();
+      const targetSocketId = onlineUsersMap.get(targetUserId);
+      console.log(`[WebRTC Socket] Call answer emitted to user: ${targetUserId}`);
+
       if (targetSocketId) {
         io.to(targetSocketId).emit('call_accepted', data.signal);
       }
@@ -140,7 +172,10 @@ const socketHandler = (io) => {
 
     socket.on('reject_call', ({ to }) => {
       if (!to) return;
-      const targetSocketId = onlineUsersMap.get(to.toString());
+      const targetUserId = typeof to === 'string' ? to : to._id?.toString() || to.toString();
+      const targetSocketId = onlineUsersMap.get(targetUserId);
+      console.log(`[WebRTC Socket] Call rejected for user: ${targetUserId}`);
+
       if (targetSocketId) {
         io.to(targetSocketId).emit('call_rejected');
       }
@@ -148,7 +183,9 @@ const socketHandler = (io) => {
 
     socket.on('ice_candidate', ({ to, candidate }) => {
       if (!to || !candidate) return;
-      const targetSocketId = onlineUsersMap.get(to.toString());
+      const targetUserId = typeof to === 'string' ? to : to._id?.toString() || to.toString();
+      const targetSocketId = onlineUsersMap.get(targetUserId);
+
       if (targetSocketId) {
         io.to(targetSocketId).emit('ice_candidate', candidate);
       }
@@ -156,10 +193,24 @@ const socketHandler = (io) => {
 
     socket.on('end_call', ({ to }) => {
       if (to) {
-        const targetSocketId = onlineUsersMap.get(to.toString());
+        const targetUserId = typeof to === 'string' ? to : to._id?.toString() || to.toString();
+        const targetSocketId = onlineUsersMap.get(targetUserId);
+        console.log(`[WebRTC Socket] Call ended signal sent to: ${targetUserId}`);
+
         if (targetSocketId) {
           io.to(targetSocketId).emit('call_ended');
         }
+      }
+    });
+
+    // Real-Time Audio/Video Mute Toggle Signaling across WebRTC Participants
+    socket.on('toggle_media_state', ({ to, mediaType, isEnabled }) => {
+      if (!to) return;
+      const targetUserId = typeof to === 'string' ? to : to._id?.toString() || to.toString();
+      const targetSocketId = onlineUsersMap.get(targetUserId);
+
+      if (targetSocketId) {
+        io.to(targetSocketId).emit('remote_media_toggled', { mediaType, isEnabled });
       }
     });
 

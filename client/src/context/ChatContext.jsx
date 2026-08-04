@@ -20,13 +20,22 @@ export const ChatProvider = ({ children }) => {
   const [blockedUserIds, setBlockedUserIds] = useState(new Set());
   const [blockedByIds, setBlockedByIds] = useState(new Set());
 
+  // Helper to deduplicate array of objects by _id
+  const deduplicateById = (items = []) => {
+    const map = new Map();
+    items.forEach((item) => {
+      if (item && item._id) map.set(item._id.toString(), item);
+    });
+    return Array.from(map.values());
+  };
+
   // Fetch all chats for logged in user
   const fetchChats = useCallback(async () => {
     if (!user) return;
     try {
       const { data } = await API.get('/chat');
       if (data.success) {
-        setChats(data.chats);
+        setChats(deduplicateById(data.chats || []));
       }
     } catch (error) {
       console.error('Failed to fetch chats:', error);
@@ -54,7 +63,7 @@ export const ChatProvider = ({ children }) => {
     try {
       const { data } = await API.get(`/message/${chatId}`);
       if (data.success) {
-        setMessages(data.messages);
+        setMessages(deduplicateById(data.messages || []));
       }
     } catch (error) {
       console.error('Failed to fetch messages:', error);
@@ -77,7 +86,7 @@ export const ChatProvider = ({ children }) => {
     setChats((prev) => {
       const exists = prev.some((c) => c._id === chat._id);
       if (!exists) {
-        return [chat, ...prev];
+        return deduplicateById([chat, ...prev]);
       }
       return prev;
     });
@@ -130,7 +139,7 @@ export const ChatProvider = ({ children }) => {
       const { data } = await API.post('/message', payload);
 
       if (data.success) {
-        setMessages((prev) => [...prev, data.message]);
+        setMessages((prev) => deduplicateById([...prev, data.message]));
         setReplyToMessage(null);
 
         if (socket) {
@@ -147,20 +156,92 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
+  // WhatsApp-like Delete Chat
+  const deleteChat = async (chatId) => {
+    if (!chatId) return;
+
+    // Find recipient to inform via socket if direct chat
+    const chatToDelete = chats.find((c) => c._id === chatId);
+    const recipientUser = chatToDelete?.isGroupChat
+      ? null
+      : chatToDelete?.users?.find((u) => u._id !== user?._id);
+
+    // Instant local UI state update
+    setChats((prev) => prev.filter((c) => c._id !== chatId));
+    if (selectedChat?._id === chatId) {
+      setSelectedChat(null);
+      setMessages([]);
+    }
+
+    if (socket) {
+      socket.emit('delete_chat', { chatId, recipientId: recipientUser?._id });
+    }
+
+    try {
+      const { data } = await API.delete(`/conversation/${chatId}`);
+      if (data.success) {
+        showToast('Chat deleted successfully', 'success');
+      }
+    } catch (error) {
+      try {
+        await API.delete(`/chat/${chatId}`);
+        showToast('Chat deleted successfully', 'success');
+      } catch (e) {
+        showToast('Failed to delete conversation from server', 'error');
+        fetchChats();
+      }
+    }
+  };
+
+  // WhatsApp-like Clear Chat
+  const clearChat = async (chatId) => {
+    if (!chatId) return;
+
+    const chatToClear = chats.find((c) => c._id === chatId);
+    const recipientUser = chatToClear?.isGroupChat
+      ? null
+      : chatToClear?.users?.find((u) => u._id !== user?._id);
+
+    // Instant local UI state update
+    if (selectedChat?._id === chatId) {
+      setMessages([]);
+    }
+    setChats((prev) =>
+      prev.map((c) => (c._id === chatId ? { ...c, latestMessage: null } : c))
+    );
+
+    if (socket) {
+      socket.emit('clear_chat', { chatId, recipientId: recipientUser?._id });
+    }
+
+    try {
+      const { data } = await API.delete(`/conversation/${chatId}/messages`);
+      if (data.success) {
+        showToast('Chat history cleared', 'info');
+      }
+    } catch (error) {
+      try {
+        await API.delete(`/chat/${chatId}/messages`);
+        showToast('Chat history cleared', 'info');
+      } catch (e) {
+        showToast('Failed to clear messages from server', 'error');
+        if (selectedChat?._id === chatId) fetchMessages(chatId);
+      }
+    }
+  };
+
   // Toggle Pin Chat
   const togglePinChat = async (chatId) => {
     try {
-      const { data } = await API.put(`/chat/${chatId}/action`, { action: 'pin' });
-      if (data.success) {
+      const { data } = await API.patch(`/chat/${chatId}/pin`, { chatId });
+      if (data.success || data.chat) {
+        const updated = data.chat;
         setChats((prev) =>
           prev.map((c) => {
             if (c._id === chatId) {
-              const pinnedBy = c.pinnedBy || [];
+              const pinnedBy = updated ? updated.pinnedBy : c.pinnedBy || [];
               const isPinned = pinnedBy.includes(user._id);
-              const updatedPinnedBy = isPinned
-                ? pinnedBy.filter((id) => id !== user._id)
-                : [...pinnedBy, user._id];
-              return { ...c, pinnedBy: updatedPinnedBy, isPinned: !isPinned };
+              return { ...c, pinnedBy, isPinned };
             }
             return c;
           })
@@ -168,24 +249,42 @@ export const ChatProvider = ({ children }) => {
         showToast('Chat pin status updated', 'success');
       }
     } catch (error) {
-      showToast('Failed to toggle pin state', 'error');
+      try {
+        const { data } = await API.put(`/chat/${chatId}/action`, { action: 'pin' });
+        if (data.success) {
+          setChats((prev) =>
+            prev.map((c) => {
+              if (c._id === chatId) {
+                const pinnedBy = c.pinnedBy || [];
+                const isPinned = pinnedBy.includes(user._id);
+                const updatedPinnedBy = isPinned
+                  ? pinnedBy.filter((id) => id !== user._id)
+                  : [...pinnedBy, user._id];
+                return { ...c, pinnedBy: updatedPinnedBy, isPinned: !isPinned };
+              }
+              return c;
+            })
+          );
+          showToast('Chat pin status updated', 'success');
+        }
+      } catch (err) {
+        showToast('Failed to toggle pin state', 'error');
+      }
     }
   };
 
   // Toggle Mute Chat
   const toggleMuteChat = async (chatId) => {
     try {
-      const { data } = await API.put(`/chat/${chatId}/action`, { action: 'mute' });
-      if (data.success) {
+      const { data } = await API.patch(`/chat/${chatId}/mute`, { chatId });
+      if (data.success || data.chat) {
+        const updated = data.chat;
         setChats((prev) =>
           prev.map((c) => {
             if (c._id === chatId) {
-              const mutedBy = c.mutedBy || [];
+              const mutedBy = updated ? updated.mutedBy : c.mutedBy || [];
               const isMuted = mutedBy.includes(user._id);
-              const updatedMutedBy = isMuted
-                ? mutedBy.filter((id) => id !== user._id)
-                : [...mutedBy, user._id];
-              return { ...c, mutedBy: updatedMutedBy, isMuted: !isMuted };
+              return { ...c, mutedBy, isMuted };
             }
             return c;
           })
@@ -193,7 +292,27 @@ export const ChatProvider = ({ children }) => {
         showToast('Chat mute status updated', 'success');
       }
     } catch (error) {
-      showToast('Failed to toggle mute state', 'error');
+      try {
+        const { data } = await API.put(`/chat/${chatId}/action`, { action: 'mute' });
+        if (data.success) {
+          setChats((prev) =>
+            prev.map((c) => {
+              if (c._id === chatId) {
+                const mutedBy = c.mutedBy || [];
+                const isMuted = mutedBy.includes(user._id);
+                const updatedMutedBy = isMuted
+                  ? mutedBy.filter((id) => id !== user._id)
+                  : [...mutedBy, user._id];
+                return { ...c, mutedBy: updatedMutedBy, isMuted: !isMuted };
+              }
+              return c;
+            })
+          );
+          showToast('Chat mute status updated', 'success');
+        }
+      } catch (err) {
+        showToast('Failed to toggle mute state', 'error');
+      }
     }
   };
 
@@ -298,7 +417,6 @@ export const ChatProvider = ({ children }) => {
 
   // Delete Message API & real-time socket emit
   const deleteMessage = async (messageId) => {
-    // Instant local UI state update (remove message completely from messages array)
     setMessages((prev) => prev.filter((msg) => msg._id !== messageId));
 
     if (socket && selectedChat) {
@@ -325,7 +443,7 @@ export const ChatProvider = ({ children }) => {
     const handleReceiveMessage = (newMessage) => {
       const targetChatId = newMessage.chat._id || newMessage.chat;
       if (selectedChat && selectedChat._id === targetChatId) {
-        setMessages((prev) => [...prev, newMessage]);
+        setMessages((prev) => deduplicateById([...prev, newMessage]));
       }
       setChats((prev) =>
         prev.map((c) => (c._id === targetChatId ? { ...c, latestMessage: newMessage } : c))
@@ -334,6 +452,23 @@ export const ChatProvider = ({ children }) => {
 
     const handleMessageDeleted = ({ messageId }) => {
       setMessages((prev) => prev.filter((msg) => msg._id !== messageId));
+    };
+
+    const handleChatDeleted = ({ chatId }) => {
+      setChats((prev) => prev.filter((c) => c._id !== chatId));
+      if (selectedChat && selectedChat._id === chatId) {
+        setSelectedChat(null);
+        setMessages([]);
+      }
+    };
+
+    const handleChatCleared = ({ chatId }) => {
+      if (selectedChat && selectedChat._id === chatId) {
+        setMessages([]);
+      }
+      setChats((prev) =>
+        prev.map((c) => (c._id === chatId ? { ...c, latestMessage: null } : c))
+      );
     };
 
     const handleGroupUpdated = (updatedChat) => {
@@ -358,6 +493,8 @@ export const ChatProvider = ({ children }) => {
 
     socket.on('receive_message', handleReceiveMessage);
     socket.on('message_deleted', handleMessageDeleted);
+    socket.on('chat_deleted', handleChatDeleted);
+    socket.on('chat_cleared', handleChatCleared);
     socket.on('group_updated', handleGroupUpdated);
     socket.on('typing', handleTyping);
     socket.on('stop_typing', handleStopTyping);
@@ -365,12 +502,13 @@ export const ChatProvider = ({ children }) => {
     return () => {
       socket.off('receive_message', handleReceiveMessage);
       socket.off('message_deleted', handleMessageDeleted);
+      socket.off('chat_deleted', handleChatDeleted);
+      socket.off('chat_cleared', handleChatCleared);
       socket.off('group_updated', handleGroupUpdated);
       socket.off('typing', handleTyping);
       socket.off('stop_typing', handleStopTyping);
     };
   }, [socket, selectedChat]);
-
 
   useEffect(() => {
     fetchChats();
@@ -394,6 +532,8 @@ export const ChatProvider = ({ children }) => {
         handleSelectChat,
         sendMessage,
         deleteMessage,
+        deleteChat,
+        clearChat,
         fetchChats,
         togglePinChat,
         toggleMuteChat,

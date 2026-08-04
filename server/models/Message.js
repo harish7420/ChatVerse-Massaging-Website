@@ -75,5 +75,8 @@ const messageSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+messageSchema.index({ chat: 1, createdAt: 1 });
+messageSchema.index({ sender: 1 });
+
 const Message = mongoose.model('Message', messageSchema);
 module.exports = Message;

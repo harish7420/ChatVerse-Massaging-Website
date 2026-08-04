@@ -4,7 +4,12 @@ const upload = require('../middleware/uploadMiddleware');
 const {
   accessChat,
   fetchChats,
+  deleteChat,
+  clearChatMessages,
   toggleChatMeta,
+  pinChat,
+  muteChat,
+  blockUserFromChat,
   createGroupChat,
   updateGroupInfo,
   addToGroup,
@@ -18,7 +23,17 @@ router.use(protect);
 
 router.post('/', accessChat);
 router.get('/', fetchChats);
+router.delete('/:id', deleteChat);
+router.delete('/:id/messages', clearChatMessages);
+
+// Meta Actions (Pin, Mute, Block)
 router.put('/:id/action', toggleChatMeta);
+router.patch('/pin', pinChat);
+router.patch('/:id/pin', pinChat);
+router.patch('/mute', muteChat);
+router.patch('/:id/mute', muteChat);
+router.patch('/block', blockUserFromChat);
+router.patch('/:id/block', blockUserFromChat);
 
 // Group Chat Routes
 router.post('/group', createGroupChat);

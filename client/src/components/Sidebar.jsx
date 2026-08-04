@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Users, Pin, MessageCircle, Sparkles, UserPlus } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, Users, Pin, MessageCircle, Sparkles, UserPlus, MoreVertical, Trash2, Eraser, VolumeX, ShieldAlert, AlertTriangle } from 'lucide-react';
 import { useChat } from '../hooks/useChat';
 import { useSocket } from '../hooks/useSocket';
 import { useAuth } from '../hooks/useAuth';
@@ -8,13 +8,40 @@ import { getMediaUrl, handleImageError, DEFAULT_AVATAR, DEFAULT_GROUP_AVATAR } f
 
 const Sidebar = ({ onOpenCreateGroup, onOpenStories }) => {
   const { user } = useAuth();
-  const { chats, selectedChat, handleSelectChat, searchQuery, setSearchQuery, blockedUserIds } = useChat();
+  const {
+    chats,
+    selectedChat,
+    handleSelectChat,
+    searchQuery,
+    setSearchQuery,
+    blockedUserIds,
+    deleteChat,
+    clearChat,
+    togglePinChat,
+    toggleMuteChat,
+    toggleBlockUser,
+  } = useChat();
   const { onlineUsers, socket } = useSocket();
 
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [activeTab, setActiveTab] = useState('all'); // 'all', 'pinned', 'groups'
   const [activeStatuses, setActiveStatuses] = useState([]);
+  const [menuOpenChatId, setMenuOpenChatId] = useState(null);
+  const [confirmModal, setConfirmModal] = useState(null); // { type: 'delete'|'clear', chat }
+
+  const menuRef = useRef(null);
+
+  // Close context menu on click outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setMenuOpenChatId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Fetch active statuses for regular users
   useEffect(() => {
@@ -101,8 +128,20 @@ const Sidebar = ({ onOpenCreateGroup, onOpenStories }) => {
     return true;
   });
 
+  const handleExecuteConfirmedAction = () => {
+    if (!confirmModal) return;
+    const { type, chat } = confirmModal;
+    if (type === 'delete') {
+      deleteChat(chat._id);
+    } else if (type === 'clear') {
+      clearChat(chat._id);
+    }
+    setConfirmModal(null);
+    setMenuOpenChatId(null);
+  };
+
   return (
-    <aside className="w-full md:w-80 lg:w-96 h-full flex flex-col bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800/80 transition-colors select-none">
+    <aside className="w-full md:w-80 lg:w-96 h-full flex flex-col bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800/80 transition-colors select-none relative">
       {/* Top Header */}
       <div className="p-4 border-b border-gray-200 dark:border-gray-800/80 space-y-3">
         <div className="flex items-center justify-between">
@@ -123,10 +162,9 @@ const Sidebar = ({ onOpenCreateGroup, onOpenStories }) => {
           </div>
         </div>
 
-        {/* WhatsApp Style Stories Reel Bar (ONLY FOR REGULAR USERS, HIDDEN FOR ADMINS) */}
+        {/* Stories Reel Bar (Regular Users) */}
         {!user?.isAdmin && (
           <div className="flex items-center gap-3 overflow-x-auto py-1 no-scrollbar">
-            {/* Add My Status */}
             <div
               onClick={onOpenStories}
               className="flex flex-col items-center gap-1 cursor-pointer flex-shrink-0 group"
@@ -145,7 +183,6 @@ const Sidebar = ({ onOpenCreateGroup, onOpenStories }) => {
               <span className="text-[10px] font-medium text-gray-600 dark:text-gray-400">My Status</span>
             </div>
 
-            {/* Contact Status Stories */}
             {activeStatuses.map((stGroup) => {
               if (stGroup.user?._id === user?._id) return null;
               return (
@@ -205,7 +242,6 @@ const Sidebar = ({ onOpenCreateGroup, onOpenStories }) => {
 
       {/* Main Conversation List */}
       <div className="flex-1 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800/40">
-        {/* Search Mode */}
         {searchQuery ? (
           <div className="p-2 space-y-1">
             <div className="px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
@@ -247,7 +283,6 @@ const Sidebar = ({ onOpenCreateGroup, onOpenStories }) => {
             )}
           </div>
         ) : (
-          /* Recent Conversations List */
           <div className="p-2 space-y-1">
             {filteredChats.length > 0 ? (
               filteredChats.map((chat) => {
@@ -266,11 +301,13 @@ const Sidebar = ({ onOpenCreateGroup, onOpenStories }) => {
                   : getMediaUrl(otherUser?.avatar, DEFAULT_AVATAR);
                 const avatarFallback = chat.isGroupChat ? DEFAULT_GROUP_AVATAR : DEFAULT_AVATAR;
 
+                const isMenuOpen = menuOpenChatId === chat._id;
+
                 return (
                   <div
                     key={chat._id}
                     onClick={() => handleSelectChat(chat)}
-                    className={`flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-all ${
+                    className={`group relative flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-all ${
                       isSelected
                         ? 'bg-brand-500/10 dark:bg-brand-600/20 border border-brand-500/30 text-gray-900 dark:text-white shadow-sm'
                         : 'hover:bg-gray-100 dark:hover:bg-gray-800/50 text-gray-700 dark:text-gray-300'
@@ -315,16 +352,95 @@ const Sidebar = ({ onOpenCreateGroup, onOpenStories }) => {
                                 ? `[${chat.latestMessage.fileType.toUpperCase()}]`
                                 : 'No messages yet')}
                         </p>
-                        {isPinned && (
-                          <Pin className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 ml-1 fill-amber-500" />
-                        )}
+                        <div className="flex items-center gap-1.5">
+                          {isPinned && (
+                            <Pin className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 fill-amber-500" />
+                          )}
+                          
+                          {/* Three-Dot Menu Button */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setMenuOpenChatId(isMenuOpen ? null : chat._id);
+                            }}
+                            className="p-1 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="Chat Options"
+                          >
+                            <MoreVertical className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                     </div>
+
+                    {/* WhatsApp Three-Dot Context Dropdown Menu */}
+                    {isMenuOpen && (
+                      <div
+                        ref={menuRef}
+                        className="absolute right-2 top-10 z-30 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl py-1.5 text-xs text-gray-700 dark:text-gray-200 animate-fade-in"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          onClick={() => {
+                            togglePinChat(chat._id);
+                            setMenuOpenChatId(null);
+                          }}
+                          className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2.5 font-medium"
+                        >
+                          <Pin className="w-4 h-4 text-amber-500" />
+                          <span>{isPinned ? 'Unpin Chat' : 'Pin Chat'}</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            toggleMuteChat(chat._id);
+                            setMenuOpenChatId(null);
+                          }}
+                          className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2.5 font-medium"
+                        >
+                          <VolumeX className="w-4 h-4 text-indigo-400" />
+                          <span>{isMuted ? 'Unmute Chat' : 'Mute Chat'}</span>
+                        </button>
+
+                        {!chat.isGroupChat && otherUser && (
+                          <button
+                            onClick={() => {
+                              toggleBlockUser(otherUser._id);
+                              setMenuOpenChatId(null);
+                            }}
+                            className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2.5 font-medium text-amber-600 dark:text-amber-400"
+                          >
+                            <ShieldAlert className="w-4 h-4" />
+                            <span>{isBlocked ? 'Unblock User' : 'Block User'}</span>
+                          </button>
+                        )}
+
+                        <button
+                          onClick={() => {
+                            setConfirmModal({ type: 'clear', chat });
+                            setMenuOpenChatId(null);
+                          }}
+                          className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2.5 font-medium text-rose-600 dark:text-rose-400 border-t border-gray-100 dark:border-gray-700/60"
+                        >
+                          <Eraser className="w-4 h-4" />
+                          <span>Clear Chat</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setConfirmModal({ type: 'delete', chat });
+                            setMenuOpenChatId(null);
+                          }}
+                          className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2.5 font-semibold text-rose-600 dark:text-rose-500"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          <span>Delete Chat</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })
             ) : (
-              /* Empty State when User has no previous conversations */
               <div className="p-8 text-center text-sm text-gray-400 space-y-3">
                 <div className="w-12 h-12 rounded-2xl bg-brand-500/10 text-brand-500 flex items-center justify-center mx-auto">
                   <Sparkles className="w-6 h-6" />
@@ -340,6 +456,42 @@ const Sidebar = ({ onOpenCreateGroup, onOpenStories }) => {
           </div>
         )}
       </div>
+
+      {/* Confirmation Modal for Delete Chat & Clear Chat */}
+      {confirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="w-full max-w-sm bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 shadow-2xl space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <div className="text-center space-y-1">
+              <h3 className="text-lg font-extrabold text-gray-900 dark:text-white">
+                {confirmModal.type === 'delete' ? 'Delete Conversation?' : 'Clear Chat History?'}
+              </h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {confirmModal.type === 'delete'
+                  ? `Are you sure you want to delete this chat with "${confirmModal.chat.chatName || 'this contact'}"? All messages will be permanently deleted.`
+                  : `Are you sure you want to clear all messages in "${confirmModal.chat.chatName || 'this chat'}"?`}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                onClick={() => setConfirmModal(null)}
+                className="flex-1 py-2.5 rounded-xl font-bold text-xs bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleExecuteConfirmedAction}
+                className="flex-1 py-2.5 rounded-xl font-bold text-xs bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-600/30 transition-all"
+              >
+                {confirmModal.type === 'delete' ? 'Delete Chat' : 'Clear Chat'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </aside>
   );
 };

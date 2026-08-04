@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Phone, Video, Info, Sparkles, ArrowLeft, Search, X, ShieldAlert } from 'lucide-react';
+import { Phone, Video, Info, Sparkles, ArrowLeft, Search, X, ShieldAlert, MoreVertical, Trash2, Eraser, Pin, VolumeX, AlertTriangle } from 'lucide-react';
 import { useChat } from '../hooks/useChat';
 import { useAuth } from '../hooks/useAuth';
 import { useSocket } from '../hooks/useSocket';
@@ -9,12 +9,39 @@ import { getMediaUrl, handleImageError, DEFAULT_AVATAR, DEFAULT_GROUP_AVATAR } f
 
 const ChatArea = ({ onToggleUserInfo, onOpenImageLightbox }) => {
   const { user } = useAuth();
-  const { selectedChat, messages, loadingMessages, typingUsers, handleSelectChat, blockedUserIds, blockedByIds, toggleBlockUser } = useChat();
+  const {
+    selectedChat,
+    messages,
+    loadingMessages,
+    typingUsers,
+    handleSelectChat,
+    blockedUserIds,
+    blockedByIds,
+    toggleBlockUser,
+    deleteChat,
+    clearChat,
+    togglePinChat,
+    toggleMuteChat,
+  } = useChat();
   const { onlineUsers, initiateCall } = useSocket();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [showInChatSearch, setShowInChatSearch] = useState(false);
+  const [showHeaderMenu, setShowHeaderMenu] = useState(false);
+  const [confirmModal, setConfirmModal] = useState(null); // { type: 'delete'|'clear' }
+
   const messagesEndRef = useRef(null);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setShowHeaderMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const otherUser = selectedChat?.isGroupChat
     ? null
@@ -24,6 +51,8 @@ const ChatArea = ({ onToggleUserInfo, onOpenImageLightbox }) => {
   const isBlockedByMe = otherUser ? blockedUserIds.has(otherUser._id) : false;
   const isBlockedByOther = otherUser ? blockedByIds.has(otherUser._id) : false;
   const isBlockedEither = isBlockedByMe || isBlockedByOther;
+  const isPinned = selectedChat?.pinnedBy?.includes(user?._id) || selectedChat?.isPinned;
+  const isMuted = selectedChat?.mutedBy?.includes(user?._id) || selectedChat?.isMuted;
 
   // Auto-scroll to bottom on new message
   useEffect(() => {
@@ -55,12 +84,23 @@ const ChatArea = ({ onToggleUserInfo, onOpenImageLightbox }) => {
 
   const headerAvatarFallback = selectedChat.isGroupChat ? DEFAULT_GROUP_AVATAR : DEFAULT_AVATAR;
 
+  const handleExecuteConfirmedAction = () => {
+    if (!confirmModal) return;
+    if (confirmModal.type === 'delete') {
+      deleteChat(selectedChat._id);
+    } else if (confirmModal.type === 'clear') {
+      clearChat(selectedChat._id);
+    }
+    setConfirmModal(null);
+    setShowHeaderMenu(false);
+  };
+
   return (
-    <div className="flex-1 h-full flex flex-col bg-gray-50 dark:bg-gray-950 relative min-w-0 transition-colors w-full overflow-hidden">
+    <div className="flex-1 h-full flex flex-col bg-gray-50 dark:bg-gray-950 relative min-w-0 transition-colors w-full overflow-hidden select-none">
       {/* Top Chat Header */}
-      <header className="h-16 px-3 sm:px-4 md:px-6 bg-white/90 dark:bg-gray-900/90 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between z-10 backdrop-blur-md transition-colors w-full">
+      <header className="h-16 px-3 sm:px-4 md:px-6 bg-white/90 dark:bg-gray-900/90 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between z-10 backdrop-blur-md transition-colors w-full relative">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-          {/* Back button for mobile view (returns to Sidebar) */}
+          {/* Back button for mobile view */}
           <button
             onClick={() => handleSelectChat(null)}
             className="md:hidden p-1.5 rounded-lg text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white flex-shrink-0"
@@ -84,8 +124,9 @@ const ChatArea = ({ onToggleUserInfo, onOpenImageLightbox }) => {
 
           {/* Name & Online Status */}
           <div className="min-w-0 cursor-pointer flex-1" onClick={onToggleUserInfo}>
-            <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">
-              {selectedChat.isGroupChat ? selectedChat.chatName : otherUser?.username || 'Contact'}
+            <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate flex items-center gap-1.5">
+              <span>{selectedChat.isGroupChat ? selectedChat.chatName : otherUser?.username || 'Contact'}</span>
+              {isMuted && <span className="text-xs text-gray-400">🔇</span>}
             </h3>
             <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate">
               {selectedChat.isGroupChat
@@ -100,7 +141,7 @@ const ChatArea = ({ onToggleUserInfo, onOpenImageLightbox }) => {
         </div>
 
         {/* Action Controls */}
-        <div className="flex items-center gap-0.5 sm:gap-2 flex-shrink-0">
+        <div className="flex items-center gap-0.5 sm:gap-2 flex-shrink-0 relative">
           {/* In-Chat Search Bar Toggle */}
           {showInChatSearch ? (
             <div className="relative flex items-center">
@@ -155,6 +196,80 @@ const ChatArea = ({ onToggleUserInfo, onOpenImageLightbox }) => {
           >
             <Info className="w-5 h-5" />
           </button>
+
+          {/* Three-Dot Menu Button */}
+          <button
+            onClick={() => setShowHeaderMenu(!showHeaderMenu)}
+            className="p-1.5 sm:p-2 rounded-xl text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            title="More Options"
+          >
+            <MoreVertical className="w-5 h-5" />
+          </button>
+
+          {/* Header Three-Dot Context Menu */}
+          {showHeaderMenu && (
+            <div
+              ref={menuRef}
+              className="absolute right-0 top-12 z-30 w-52 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl py-1.5 text-xs text-gray-700 dark:text-gray-200 animate-fade-in"
+            >
+              <button
+                onClick={() => {
+                  togglePinChat(selectedChat._id);
+                  setShowHeaderMenu(false);
+                }}
+                className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2.5 font-medium"
+              >
+                <Pin className="w-4 h-4 text-amber-500" />
+                <span>{isPinned ? 'Unpin Chat' : 'Pin Chat'}</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  toggleMuteChat(selectedChat._id);
+                  setShowHeaderMenu(false);
+                }}
+                className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2.5 font-medium"
+              >
+                <VolumeX className="w-4 h-4 text-indigo-400" />
+                <span>{isMuted ? 'Unmute Chat' : 'Mute Chat'}</span>
+              </button>
+
+              {!selectedChat.isGroupChat && otherUser && (
+                <button
+                  onClick={() => {
+                    toggleBlockUser(otherUser._id);
+                    setShowHeaderMenu(false);
+                  }}
+                  className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2.5 font-medium text-amber-600 dark:text-amber-400"
+                >
+                  <ShieldAlert className="w-4 h-4" />
+                  <span>{isBlockedByMe ? 'Unblock User' : 'Block User'}</span>
+                </button>
+              )}
+
+              <button
+                onClick={() => {
+                  setConfirmModal({ type: 'clear' });
+                  setShowHeaderMenu(false);
+                }}
+                className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2.5 font-medium text-rose-600 dark:text-rose-400 border-t border-gray-100 dark:border-gray-700/60"
+              >
+                <Eraser className="w-4 h-4" />
+                <span>Clear Chat</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setConfirmModal({ type: 'delete' });
+                  setShowHeaderMenu(false);
+                }}
+                className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2.5 font-semibold text-rose-600 dark:text-rose-500"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Delete Chat</span>
+              </button>
+            </div>
+          )}
         </div>
       </header>
 
@@ -214,6 +329,42 @@ const ChatArea = ({ onToggleUserInfo, onOpenImageLightbox }) => {
         </div>
       ) : (
         <MessageInput />
+      )}
+
+      {/* Confirmation Modal for Delete Chat & Clear Chat */}
+      {confirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="w-full max-w-sm bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 shadow-2xl space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <div className="text-center space-y-1">
+              <h3 className="text-lg font-extrabold text-gray-900 dark:text-white">
+                {confirmModal.type === 'delete' ? 'Delete Conversation?' : 'Clear Chat History?'}
+              </h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {confirmModal.type === 'delete'
+                  ? `Are you sure you want to delete this chat with "${selectedChat.chatName || 'this contact'}"? All messages will be permanently deleted.`
+                  : `Are you sure you want to clear all messages in "${selectedChat.chatName || 'this chat'}"?`}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                onClick={() => setConfirmModal(null)}
+                className="flex-1 py-2.5 rounded-xl font-bold text-xs bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleExecuteConfirmedAction}
+                className="flex-1 py-2.5 rounded-xl font-bold text-xs bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-600/30 transition-all"
+              >
+                {confirmModal.type === 'delete' ? 'Delete Chat' : 'Clear Chat'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
