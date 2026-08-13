@@ -146,17 +146,13 @@ const socketHandler = (io) => {
 
       console.log(`[WebRTC Socket] Call offer initiated from ${from?.username || socket.userId} to ${targetUserId} (${callType})`);
 
-      if (targetSocketId) {
-        io.to(targetSocketId).emit('incoming_call', {
-          signal: signalData,
-          from,
-          callType, // 'audio' or 'video'
-        });
-        socket.emit('call_ringing', { message: 'Ringing...' });
-      } else {
-        console.log(`[WebRTC Socket] User ${targetUserId} is offline or unreachable`);
-        socket.emit('call_ringing', { message: 'Calling...' });
-      }
+      const targetDest = targetSocketId || targetUserId;
+      io.to(targetDest).emit('incoming_call', {
+        signal: signalData,
+        from,
+        callType, // 'audio' or 'video'
+      });
+      socket.emit('call_ringing', { message: 'Ringing...' });
     });
 
     socket.on('answer_call', (data) => {
@@ -165,9 +161,8 @@ const socketHandler = (io) => {
       const targetSocketId = onlineUsersMap.get(targetUserId);
       console.log(`[WebRTC Socket] Call answer emitted to user: ${targetUserId}`);
 
-      if (targetSocketId) {
-        io.to(targetSocketId).emit('call_accepted', data.signal);
-      }
+      const targetDest = targetSocketId || targetUserId;
+      io.to(targetDest).emit('call_accepted', data.signal);
     });
 
     socket.on('reject_call', ({ to }) => {
@@ -176,9 +171,8 @@ const socketHandler = (io) => {
       const targetSocketId = onlineUsersMap.get(targetUserId);
       console.log(`[WebRTC Socket] Call rejected for user: ${targetUserId}`);
 
-      if (targetSocketId) {
-        io.to(targetSocketId).emit('call_rejected');
-      }
+      const targetDest = targetSocketId || targetUserId;
+      io.to(targetDest).emit('call_rejected');
     });
 
     socket.on('ice_candidate', ({ to, candidate }) => {
@@ -186,9 +180,8 @@ const socketHandler = (io) => {
       const targetUserId = typeof to === 'string' ? to : to._id?.toString() || to.toString();
       const targetSocketId = onlineUsersMap.get(targetUserId);
 
-      if (targetSocketId) {
-        io.to(targetSocketId).emit('ice_candidate', candidate);
-      }
+      const targetDest = targetSocketId || targetUserId;
+      io.to(targetDest).emit('ice_candidate', candidate);
     });
 
     socket.on('end_call', ({ to }) => {
@@ -197,9 +190,8 @@ const socketHandler = (io) => {
         const targetSocketId = onlineUsersMap.get(targetUserId);
         console.log(`[WebRTC Socket] Call ended signal sent to: ${targetUserId}`);
 
-        if (targetSocketId) {
-          io.to(targetSocketId).emit('call_ended');
-        }
+        const targetDest = targetSocketId || targetUserId;
+        io.to(targetDest).emit('call_ended');
       }
     });
 
@@ -209,9 +201,8 @@ const socketHandler = (io) => {
       const targetUserId = typeof to === 'string' ? to : to._id?.toString() || to.toString();
       const targetSocketId = onlineUsersMap.get(targetUserId);
 
-      if (targetSocketId) {
-        io.to(targetSocketId).emit('remote_media_toggled', { mediaType, isEnabled });
-      }
+      const targetDest = targetSocketId || targetUserId;
+      io.to(targetDest).emit('remote_media_toggled', { mediaType, isEnabled });
     });
 
     // Disconnection Cleanup

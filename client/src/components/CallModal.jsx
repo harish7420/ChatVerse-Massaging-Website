@@ -44,9 +44,11 @@ const CallModal = () => {
   useEffect(() => {
     if (remoteVideoRef.current && remoteStream) {
       remoteVideoRef.current.srcObject = remoteStream;
+      remoteVideoRef.current.play().catch((err) => console.log('[CALL] Remote video play catch:', err));
     }
     if (remoteAudioRef.current && remoteStream) {
       remoteAudioRef.current.srcObject = remoteStream;
+      remoteAudioRef.current.play().catch((err) => console.log('[CALL] Remote audio play catch:', err));
     }
   }, [remoteStream]);
 
@@ -83,6 +85,7 @@ const CallModal = () => {
   const hasRemoteVideoTrack =
     remoteStream &&
     remoteStream.getVideoTracks().length > 0 &&
+    remoteStream.getVideoTracks().some((t) => t.enabled && t.readyState === 'live') &&
     remoteMediaState?.isVideoOn !== false;
 
   // Video Call Modal Layout
